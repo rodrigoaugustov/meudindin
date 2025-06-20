@@ -48,7 +48,7 @@
                         {% for conta in contas_bancarias %}
                         <div class="flex justify-between items-center text-sm">
                             <p><span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-2"></span>{{ conta.nome_banco }}</p>
-                            <p class="font-medium">R$ {{ conta.saldo_atual|brl }}</p>
+                            <p class="font-medium">R$ {{ conta.saldo_calculado|brl }}</p>
                         </div>
                         {% empty %}
                             <p class="text-sm text-gray-500">Nenhuma conta cadastrada.</p>

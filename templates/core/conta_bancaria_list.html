@@ -23,7 +23,7 @@
                         </p>
                     </div>
                         <div class="flex-shrink-0 ml-4 flex items-center space-x-4">
-                        <span class="text-lg font-semibold text-gray-800">R$ {{ conta.saldo_atual|floatformat:2 }}</span>
+                        <span class="text-lg font-semibold text-gray-800">R$ {{ conta.saldo_calculado|floatformat:2 }}</span>
                         <!-- NOVO BOTÃO -->
                         <a href="{% url 'core:lancamento_list' conta.pk %}" class="text-green-600 hover:text-green-900 text-sm font-medium">Extrato</a>
                         <a href="{% url 'core:conta_update' conta.pk %}" class="text-indigo-600 hover:text-indigo-900 text-sm">Editar</a>

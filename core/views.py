@@ -40,7 +40,7 @@ def home(request):
     # Busca os objetos financeiros pertencentes apenas ao usuário da requisição
     contas_bancarias = ContaBancaria.objects.filter(usuario=request.user)
     cartoes_de_credito = CartaoCredito.objects.filter(usuario=request.user)
-    total_contas = sum(conta.saldo_atual for conta in contas_bancarias)
+    total_contas = sum(conta.saldo_calculado for conta in contas_bancarias)
 
     chart_labels = []
     chart_data = []

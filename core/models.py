@@ -18,23 +18,18 @@ class ContaBancaria(models.Model):
     data_saldo_inicial = models.DateField(
         help_text="Data correspondente ao saldo inicial informado."
     )
+    saldo_calculado = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=0.00,
+        editable=False,
+        help_text="Saldo atual calculado via sinais para otimização de performance."
+    )
 
     class Meta:
         verbose_name = "Conta Bancária"
         verbose_name_plural = "Contas Bancárias"
         unique_together = [['usuario', 'agencia', 'numero_conta']]
-
-    @property
-    def saldo_atual(self):
-        """Calcula e retorna o saldo atual da conta."""
-        # Soma todos os lançamentos de crédito associados a esta conta
-        soma_creditos = self.lancamentos.filter(tipo='C').aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
-        
-        # Soma todos os lançamentos de débito associados a esta conta
-        soma_debitos = self.lancamentos.filter(tipo='D').aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
-        
-        saldo = self.saldo_inicial + soma_creditos - soma_debitos
-        return saldo
 
     def __str__(self):
         return f"{self.nome_banco} ({self.numero_conta}) - {self.usuario.username}"
