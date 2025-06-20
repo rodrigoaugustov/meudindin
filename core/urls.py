@@ -24,7 +24,9 @@ from .views import (
     LancamentoDeleteView,
     importar_csv_view,
     confirmar_importacao_view,
-    conciliar_lancamento_view
+    conciliar_lancamento_view,
+    excluir_lancamentos_em_massa,
+    iniciar_fila_conciliacao_view,
 )
 
 app_name = 'core'
@@ -65,6 +67,7 @@ urlpatterns += [
     path('lancamentos/adicionar/', LancamentoCreateView.as_view(), name='lancamento_create'),
     path('lancamentos/<int:pk>/editar/', LancamentoUpdateView.as_view(), name='lancamento_update'),
     path('lancamentos/<int:pk>/excluir/', LancamentoDeleteView.as_view(), name='lancamento_delete'),
+    path('lancamentos/bulk-delete/', excluir_lancamentos_em_massa, name='lancamento_bulk_delete'),
     # Rota para a lista de lançamentos (extrato) de uma conta
     path('conta/<int:conta_pk>/extrato/', LancamentoListView.as_view(), name='lancamento_list'),
     # Rota para a importação de CSV
@@ -73,4 +76,6 @@ urlpatterns += [
     path('importar/confirmar/', confirmar_importacao_view, name='confirmar_importacao'),
     # Rota para conciliar um lançamento
     path('lancamentos/<int:pk>/conciliar/', conciliar_lancamento_view, name='lancamento_conciliar'),
+    # Rota para iniciar a fila de conciliação
+    path('lancamentos/iniciar-conciliacao/', iniciar_fila_conciliacao_view, name='lancamento_iniciar_conciliacao'),
 ]
