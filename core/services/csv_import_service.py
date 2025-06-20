@@ -28,6 +28,10 @@ def processar_arquivo_csv(csv_file, conta_selecionada):
 
     lancamentos_a_revisar = []
     warnings = []
+    lancamentos_antigos = [] 
+    
+    # Pega a data de saldo inicial da conta uma vez antes do loop
+    data_saldo_inicial_conta = conta_selecionada.data_saldo_inicial
     
     for row in reader:
         try:
@@ -48,6 +52,15 @@ def processar_arquivo_csv(csv_file, conta_selecionada):
                 numero_documento=numero_documento, valor=valor
             )
 
+            if data_caixa_obj < data_saldo_inicial_conta:
+                # Se for, adiciona à lista de 'antigos' e pula para a próxima linha.
+                lancamentos_antigos.append({
+                    'data_caixa': data_caixa_obj.strftime('%d/%m/%Y'),
+                    'descricao': row[2].strip(),
+                    'valor': row[5].strip(),
+                })
+                continue
+
             lancamentos_a_revisar.append({
                 'data_competencia': data_competencia_obj.isoformat(),
                 'data_caixa': data_caixa_obj.isoformat(),
@@ -62,4 +75,4 @@ def processar_arquivo_csv(csv_file, conta_selecionada):
             warnings.append(f"Linha ignorada: {','.join(row)}. Erro: {e}")
             continue
 
-    return lancamentos_a_revisar, warnings
+    return lancamentos_a_revisar, warnings, lancamentos_antigos

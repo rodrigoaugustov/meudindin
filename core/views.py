@@ -1,6 +1,9 @@
 # core/views.py
 import json
 
+from datetime import date
+from dateutil.relativedelta import relativedelta
+
 from decimal import Decimal
 from django.contrib import messages
 from django.shortcuts import render, redirect
@@ -76,7 +79,7 @@ class ContaBancariaCreateView(LoginRequiredMixin, CreateView):
         """Sobrescreve para associar a nova conta ao usuário logado."""
         form.instance.usuario = self.request.user
         return super().form_valid(form)
-
+    
 class ContaBancariaUpdateView(LoginRequiredMixin, UpdateView):
     model = ContaBancaria
     form_class = ContaBancariaForm
@@ -209,31 +212,64 @@ class LancamentoListView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        self.conta = get_object_or_404(
-            ContaBancaria, 
-            pk=self.kwargs['conta_pk'], 
-            usuario=self.request.user
-        )
+        # Pega os parâmetros da URL
+        pk = self.kwargs['conta_pk']
+        ano = self.kwargs.get('ano')
+        mes = self.kwargs.get('mes')
 
+        if ano is None or mes is None:
+            hoje = date.today()
+            ano = hoje.year
+            mes = hoje.month
+
+        self.conta = get_object_or_404(ContaBancaria, pk=pk, usuario=self.request.user)
+        
+        # Filtra os lançamentos pelo mês e ano selecionados
         return Lancamento.objects.filter(
-            conta_bancaria=self.conta
+            conta_bancaria=self.conta,
+            data_caixa__year=ano,
+            data_caixa__month=mes
         ).com_saldo_parcial().order_by('-data_caixa', '-id')
 
     def get_context_data(self, **kwargs):
-        # Pega o contexto padrão (que inclui a lista paginada de 'lancamentos')
         context = super().get_context_data(**kwargs)
         
-        # Adiciona a conta ao contexto
-        context['conta'] = self.conta
+        ano = self.kwargs.get('ano')
+        mes = self.kwargs.get('mes')
 
-        # --- INÍCIO DA CORREÇÃO DEFINITIVA ---
-        # 4. Pós-processamento em Python para calcular o saldo final de cada linha
-        #    Isso é feito APÓS a query ao banco, sobre a lista de objetos já na memória.
-        #    É rápido e garante que não quebramos a query.
+        if ano is None or mes is None:
+            hoje = date.today()
+            ano = hoje.year
+            mes = hoje.month
+
+        data_selecionada = date(ano, mes, 1)
+
+        # --- CÁLCULO DO SALDO ANTERIOR ---
+        # Saldo inicial da conta
+        saldo_anterior = self.conta.saldo_inicial
+        # Soma/subtrai lançamentos ANTERIORES ao início do mês selecionado
+        lancamentos_passados = Lancamento.objects.filter(
+            conta_bancaria=self.conta,
+            data_caixa__lt=data_selecionada,
+        ).aggregate(
+            creditos=Sum('valor', filter=Q(tipo='C')),
+            debitos=Sum('valor', filter=Q(tipo='D'))
+        )
+        saldo_anterior += (lancamentos_passados['creditos'] or 0)
+        saldo_anterior -= (lancamentos_passados['debitos'] or 0)
+        
+        # Pós-processamento para o saldo final correto de cada linha
         for lancamento in context['lancamentos']:
-            lancamento.saldo_final_linha = self.conta.saldo_inicial + lancamento.saldo_parcial
-        # --- FIM DA CORREÇÃO DEFINITIVA ---
-
+            lancamento.saldo_final_linha = saldo_anterior + lancamento.saldo_parcial
+        
+        # --- PREPARAÇÃO DOS DADOS PARA O COMPONENTE ---
+        context['conta'] = self.conta
+        context['todas_as_contas'] = ContaBancaria.objects.filter(usuario=self.request.user)
+        context['data_selecionada'] = data_selecionada
+        context['mes_anterior'] = data_selecionada - relativedelta(months=1)
+        context['mes_seguinte'] = data_selecionada + relativedelta(months=1)
+        context['saldo_inicial_periodo'] = saldo_anterior
+        
         return context
     
 class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
@@ -286,7 +322,7 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_success_url(self):
         """Redireciona de volta para o extrato da conta do lançamento."""
-        return reverse_lazy('core:lancamento_list', kwargs={'conta_pk': self.object.conta_bancaria.pk})
+        return reverse_lazy('core:lancamento_list_atual', kwargs={'conta_pk': self.object.conta_bancaria.pk})
 
 
 class LancamentoDeleteView(LoginRequiredMixin, DeleteView):
@@ -301,7 +337,7 @@ class LancamentoDeleteView(LoginRequiredMixin, DeleteView):
         """Redireciona de volta para o extrato da conta após a exclusão."""
         # Precisamos pegar o pk da conta antes que o objeto seja deletado
         self.conta_pk = self.object.conta_bancaria.pk
-        return reverse_lazy('core:lancamento_list', kwargs={'conta_pk': self.conta_pk})
+        return reverse_lazy('core:lancamento_list_atual', kwargs={'conta_pk': self.conta_pk})
     
 @require_POST
 @login_required
@@ -332,7 +368,7 @@ def importar_csv_view(request):
             csv_file = form.cleaned_data['csv_file']
             conta_selecionada = form.cleaned_data['conta_bancaria']
 
-            lancamentos_a_revisar, warnings = services.processar_arquivo_csv(
+            lancamentos_a_revisar, warnings, lancamentos_antigos = services.processar_arquivo_csv(
                 csv_file=csv_file,
                 conta_selecionada=conta_selecionada
             )
@@ -340,9 +376,15 @@ def importar_csv_view(request):
             # Armazena os dados processados e o ID da conta na sessão do usuário
             request.session['lancamentos_para_importar'] = lancamentos_a_revisar
             request.session['conta_pk_para_importar'] = conta_selecionada.pk
+
+            context = {
+                'lancamentos': lancamentos_a_revisar,
+                'conta': conta_selecionada,
+                'lancamentos_antigos': lancamentos_antigos, # <-- NOVO CONTEXTO
+            }
             
             # Renderiza o template de pré-conciliação
-            return render(request, 'core/pre_conciliacao.html', {'lancamentos': lancamentos_a_revisar, 'conta': conta_selecionada})
+            return render(request, 'core/pre_conciliacao.html', context)
 
     # Se o método for GET, exibe o formulário de upload normal
     form = CSVImportForm(user=request.user)
@@ -385,11 +427,12 @@ def confirmar_importacao_view(request):
 
         if lancamentos_para_criar:
             Lancamento.objects.bulk_create(lancamentos_para_criar)
+            services.recalcular_saldo_conta(conta)
             messages.success(request, f"{len(lancamentos_para_criar)} lançamentos foram importados com sucesso!")
         else:
             messages.warning(request, "Nenhum lançamento foi importado.")
             
-        return redirect('core:lancamento_list', conta_pk=conta.pk)
+        return redirect('core:lancamento_list_atual', conta_pk=conta.pk)
 
     return redirect('core:importar_csv')
 
@@ -420,7 +463,7 @@ def conciliar_lancamento_view(request, pk):
             else:
                 # Se a fila acabou, limpa a chave da sessão e volta para o extrato
                 request.session.pop('conciliation_queue', None)
-                return redirect('core:lancamento_list', conta_pk=lancamento.conta_bancaria.pk)
+                return redirect('core:lancamento_list_atual', conta_pk=lancamento.conta_bancaria.pk)
     else:
         # Preenche o formulário com os dados existentes
         form = ConciliacaoForm(initial={

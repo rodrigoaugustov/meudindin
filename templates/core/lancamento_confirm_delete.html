@@ -18,7 +18,7 @@
         <form method="post">
             {% csrf_token %}
             <div class="flex justify-center space-x-4">
-                <a href="{% url 'core:lancamento_list' object.conta_bancaria.pk %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">
+                <a href="{% url 'core:lancamento_list_atual' object.conta_bancaria.pk %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">
                     Cancelar
                 </a>
                 <button type="submit" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700">

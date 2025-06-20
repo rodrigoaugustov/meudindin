@@ -8,12 +8,13 @@ from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
 class ContaBancariaForm(forms.ModelForm):
     class Meta:
         model = ContaBancaria
-        fields = ['nome_banco', 'agencia', 'numero_conta', 'saldo_inicial']
+        fields = ['nome_banco', 'agencia', 'numero_conta', 'saldo_inicial', 'data_saldo_inicial']
         # Você pode personalizar os labels aqui se quiser
         labels = {
             'nome_banco': 'Nome do Banco',
             'numero_conta': 'Número da Conta',
             'saldo_inicial': 'Saldo Inicial (R$)',
+            'data_saldo_inicial': 'Data Saldo Inicial',
         }
 
     def __init__(self, *args, **kwargs):
@@ -33,6 +34,8 @@ class ContaBancariaForm(forms.ModelForm):
                 field.widget.attrs['placeholder'] = '12345-6'
             if field_name == 'saldo_inicial':
                 field.widget.attrs['placeholder'] = '0,00'
+            if field_name == 'data_saldo_inicial':
+                field.widget.attrs['type'] = 'date'
 
 class CartaoCreditoForm(forms.ModelForm):
     class Meta:

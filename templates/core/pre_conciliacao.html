@@ -7,6 +7,29 @@
     <div class="bg-white shadow-lg rounded-lg p-8">
         <h1 class="text-2xl font-bold text-gray-900 mb-2">Revisar e Confirmar Importação</h1>
         <p class="text-gray-600 mb-6">Os seguintes lançamentos serão importados para a conta <strong>{{ conta.nome_banco }}</strong>.</p>
+
+        <!-- ### INÍCIO DO NOVO BLOCO DE AVISO ### -->
+        {% if lancamentos_antigos %}
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded-md" role="alert">
+            <p class="font-bold">Atenção: Lançamentos Ignorados</p>
+            <p class="mt-2 text-sm">
+                Os {{ lancamentos_antigos|length }} lançamentos listados abaixo foram ignorados pois suas datas são <strong>anteriores</strong> à data de saldo inicial da conta, que é <strong>{{ conta.data_saldo_inicial|date:"d/m/Y" }}</strong>.
+            </p>
+            <p class="mt-2 text-sm">
+                Se desejar incluí-los, você precisará 
+                <a href="{% url 'core:conta_update' conta.pk %}" class="font-bold underline hover:text-yellow-800">
+                    editar sua conta
+                </a> 
+                e ajustar a data e o valor do saldo inicial antes de tentar a importação novamente.
+            </p>
+            <ul class="list-disc list-inside mt-3 text-sm">
+                {% for lanc in lancamentos_antigos %}
+                <li>{{ lanc.data_caixa }} - {{ lanc.descricao }} (R$ {{ lanc.valor }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        <!-- ### FIM DO NOVO BLOCO DE AVISO ### -->
         
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
