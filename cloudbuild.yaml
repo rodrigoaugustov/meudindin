@@ -1,0 +1,26 @@
+steps:
+  # Passo 1: Construir a imagem Docker
+  # Este passo usa o builder de Docker do Cloud Build para criar a imagem.
+  # A tag '-t' usa o nome do repositório e a variável $COMMIT_SHA para criar uma tag única para cada build.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/meudindin:$COMMIT_SHA', '.']
+
+  # Passo 2: Enviar a imagem Docker para o Artifact Registry
+  # Este passo pega a imagem que acabamos de construir e a envia para o seu registro privado.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/meudindin:$COMMIT_SHA']
+
+  # Passo 3: Fazer o deploy da nova imagem no Cloud Run
+  # Este é o passo mais importante. Ele usa o builder do 'gcloud' para atualizar o serviço do Cloud Run.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'meudindin' # O nome do seu serviço no Cloud Run
+      - '--image==gcr.io/$PROJECT_ID/meudindin:$COMMIT_SHA' # A nova imagem que acabamos de enviar
+      - '--region==southamerica-east1'
+      - '--platform==managed'
+      - '--allow-unauthenticated' # Permite acesso público
+      - '--add-cloudsql-instances==meudindin-463521:southamerica-east1:meudindin-db'
+      - --set-secrets=db_user=db_user:latest,db_password=db_password:latest,db_name=db_name:latest,django_secret_key=django_secret_key:latest,db_connection_name=db_connection_name:latest

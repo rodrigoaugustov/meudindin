@@ -14,6 +14,7 @@ from pathlib import Path
 
 import os
 import dj_database_url
+from google.cloud import secretmanager
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,16 +23,38 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-3ghz1*z*d74*t$leew%$qcd-_h+sgiap7)aartqphlsebg7af7')
+def get_secret(secret_name, project_id):
+    client = secretmanager.SecretManagerServiceClient()
+    request = {"name": f"projects/{project_id}/secrets/{secret_name}/versions/latest"}
+    response = client.access_secret_version(request)
+    return response.payload.data.decode("UTF-8")
 
-# DEBUG é False em produção. O Render definirá a variável de ambiente.
-DEBUG = os.environ.get('RENDER', 'False') == 'True'
+# ID de Projeto do GCP
+PROJECT_ID = 'meudindin-463521'
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = get_secret("django_secret_key", PROJECT_ID)
+DB_USER = get_secret("db_user", PROJECT_ID)
+DB_PASSWORD = get_secret("db_password", PROJECT_ID)
+DB_NAME = get_secret("db_name", PROJECT_ID)
+DB_CONNECTION_NAME = get_secret("db_connection_name", PROJECT_ID)
+
+
+# DEBUG é False em produção.
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = []
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_EXTERNAL_HOSTNAME:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# Se estivermos em modo de depuração (local), permita localhost.
+if DEBUG:
+    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
+else:
+    # Em produção, confie nos hosts do Cloud Run.
+    # O Google gerencia o cabeçalho Host, mas é uma boa prática
+    # adicionar o domínio esperado. O wildcard '.run.app' permite que qualquer
+    # URL de serviço do Cloud Run (ex: sua-app-xyz-uc.a.run.app) acesse a aplicação.
+    # É seguro, pois o Google garante que apenas o seu serviço responda nessa URL.
+    ALLOWED_HOSTS.append('.run.app')
 
 # Application definition
 
@@ -82,11 +105,10 @@ WSGI_APPLICATION = 'gestor_financeiro.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Configuração do banco de dados
 DATABASES = {
     'default': dj_database_url.config(
-        # Se não encontrar a variável DATABASE_URL, usa o SQLite local
-        default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
-        conn_max_age=600
+        default=f'postgres://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?host=/cloudsql/{DB_CONNECTION_NAME}'
     )
 }
 
