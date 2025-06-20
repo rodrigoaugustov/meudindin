@@ -72,13 +72,20 @@ class LancamentoForm(forms.ModelForm):
     # Usando o campo customizado para as categorias
     categoria = CategoriaModelChoiceField(
         queryset=Categoria.objects.none(), # O queryset será definido no __init__
-        required=True
+        required=False
     )
     
     data_caixa = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
         required=False,
         label="Data de Pagamento (Caixa)"
+    )
+
+    conciliar_automaticamente = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Marcar como conciliado",
+        help_text="Marque esta opção se o lançamento já estiver confirmado em seu extrato."
     )
 
     class Meta:

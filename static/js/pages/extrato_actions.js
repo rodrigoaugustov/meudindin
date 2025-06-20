@@ -24,9 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Habilita/desabilita botão de editar
-        btnEditar.disabled = count !== 1;
-        btnEditar.classList.toggle('text-gray-400', count !== 1);
-        btnEditar.classList.toggle('cursor-not-allowed', count !== 1);
+        btnEditar.disabled = count === 0;
+        btnEditar.classList.toggle('text-gray-400', count === 0);
+        btnEditar.classList.toggle('cursor-not-allowed', count === 0);
 
         // O botão de conciliar fica ativo se houver pelo menos um item
         btnConciliar.disabled = count === 0;
@@ -63,9 +63,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     btnEditar.addEventListener('click', () => {
-        if (selectedItems.size === 1) {
-            const id = selectedItems.values().next().value;
-            window.location.href = `/lancamentos/${id}/editar/`;
+        if (selectedItems.size > 0) {
+            fetch('/lancamentos/iniciar-edicao/', { // <-- URL da nova view
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ ids: Array.from(selectedItems) })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success' && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert(data.message || 'Ocorreu um erro ao iniciar a edição.');
+                }
+            });
         }
     });
 

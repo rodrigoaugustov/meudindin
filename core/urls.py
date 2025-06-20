@@ -27,6 +27,7 @@ from .views import (
     conciliar_lancamento_view,
     excluir_lancamentos_em_massa,
     iniciar_fila_conciliacao_view,
+    iniciar_fila_edicao_view,
 )
 
 app_name = 'core'
@@ -78,4 +79,6 @@ urlpatterns += [
     path('lancamentos/<int:pk>/conciliar/', conciliar_lancamento_view, name='lancamento_conciliar'),
     # Rota para iniciar a fila de conciliação
     path('lancamentos/iniciar-conciliacao/', iniciar_fila_conciliacao_view, name='lancamento_iniciar_conciliacao'),
+    path('lancamentos/iniciar-edicao/', iniciar_fila_edicao_view, name='lancamento_iniciar_edicao'),
+
 ]

@@ -198,6 +198,8 @@ class LancamentoCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.usuario = self.request.user
+        conciliar = form.cleaned_data.get('conciliar_automaticamente', False)
+        form.instance.conciliado = conciliar
         return super().form_valid(form)
 
 class LancamentoListView(LoginRequiredMixin, ListView):
@@ -249,6 +251,38 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
+    
+    def form_valid(self, form):
+        """
+        Sobrescrito para lidar com o checkbox de conciliação e a lógica da fila de edição.
+        """
+        # Pega o valor do novo campo do formulário
+        conciliar = form.cleaned_data.get('conciliar_automaticamente', False)
+        # Atualiza o estado de 'conciliado' do objeto ANTES de salvar
+        form.instance.conciliado = conciliar
+        
+        # Salva o objeto normalmente
+        self.object = form.save()
+
+        # Inicia a lógica da fila
+        queue = self.request.session.get('edition_queue', [])
+        current_pk = self.object.pk
+
+        if current_pk in queue:
+            queue.remove(current_pk) # Remove o item atual
+
+            if queue: # Se ainda houver itens na fila
+                next_id = queue[0]
+                self.request.session['edition_queue'] = queue # Salva a fila atualizada
+                # Redireciona para a página de edição do próximo item
+                return redirect('core:lancamento_update', pk=next_id)
+            else:
+                # Se a fila acabou, limpa a sessão e vai para o extrato
+                self.request.session.pop('edition_queue', None)
+                return redirect(self.get_success_url())
+        
+        # Se não estava em uma fila, comportamento padrão
+        return redirect(self.get_success_url())
 
     def get_success_url(self):
         """Redireciona de volta para o extrato da conta do lançamento."""
@@ -408,11 +442,11 @@ def iniciar_fila_conciliacao_view(request):
         ids = [int(id_str) for id_str in data.get('ids', [])]
 
         # Validação: Garante que todos os IDs pertencem ao usuário
-        lancamentos_validos = Lancamento.objects.filter(usuario=request.user, id__in=ids)
+        lancamentos_validos = Lancamento.objects.filter(usuario=request.user, id__in=ids, conciliado=False).order_by('data_caixa', 'id')
         ids_validos = list(lancamentos_validos.values_list('id', flat=True))
 
         if not ids_validos:
-            return JsonResponse({'status': 'error', 'message': 'Nenhum lançamento válido selecionado.'}, status=400)
+            return JsonResponse({'status': 'info', 'message': 'Todos os lançamentos selecionados já estão conciliados.\nPara alterar lançamentos conciliados, primeiro faça a edição'}, status=200)
 
         # Salva a fila de IDs válidos na sessão
         request.session['conciliation_queue'] = ids_validos
@@ -422,6 +456,36 @@ def iniciar_fila_conciliacao_view(request):
         
         # Gera a URL de redirecionamento para o primeiro item
         redirect_url = reverse('core:lancamento_conciliar', kwargs={'pk': primeiro_id})
+        
+        return JsonResponse({'status': 'success', 'redirect_url': redirect_url})
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Requisição inválida.'}, status=400)
+    
+
+@require_POST
+@login_required
+def iniciar_fila_edicao_view(request):
+    try:
+        data = json.loads(request.body)
+        ids = [int(id_str) for id_str in data.get('ids', [])]
+
+        # Apenas validamos se os lançamentos pertencem ao usuário
+        lancamentos_validos = Lancamento.objects.filter(
+            usuario=request.user, id__in=ids
+        ).order_by('data_caixa', 'id')
+
+        ids_para_a_fila = list(lancamentos_validos.values_list('id', flat=True))
+
+        if not ids_para_a_fila:
+            return JsonResponse({'status': 'error', 'message': 'Nenhum lançamento válido selecionado.'}, status=400)
+
+        # Usamos uma chave de sessão diferente para a fila de edição
+        request.session['edition_queue'] = ids_para_a_fila
+        
+        primeiro_id = ids_para_a_fila[0]
+        
+        # Redirecionamos para a view de UPDATE existente
+        redirect_url = reverse('core:lancamento_update', kwargs={'pk': primeiro_id})
         
         return JsonResponse({'status': 'success', 'redirect_url': redirect_url})
     except (json.JSONDecodeError, TypeError, ValueError):
