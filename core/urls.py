@@ -28,6 +28,7 @@ from .views import (
     excluir_lancamentos_em_massa,
     iniciar_fila_conciliacao_view,
     iniciar_fila_edicao_view,
+    sincronizar_extrato_bb_view
 )
 
 app_name = 'core'
@@ -80,5 +81,6 @@ urlpatterns += [
     # Rota para iniciar a fila de conciliação
     path('lancamentos/iniciar-conciliacao/', iniciar_fila_conciliacao_view, name='lancamento_iniciar_conciliacao'),
     path('lancamentos/iniciar-edicao/', iniciar_fila_edicao_view, name='lancamento_iniciar_edicao'),
+    path('conta/<int:conta_pk>/sincronizar-bb/', sincronizar_extrato_bb_view, name='sincronizar_extrato_bb'),
 
 ]

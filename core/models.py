@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum, Q, Window, F, Case, When, DecimalField
 from decimal import Decimal
+from encrypted_model_fields.fields import EncryptedCharField
 
 # --- Modelos Principais de Cadastros ---
 
@@ -168,3 +169,24 @@ class Orcamento(models.Model):
 
     def __str__(self):
         return f"{self.categoria.nome} - {self.ano_mes.strftime('%m/%Y')} - R$ {self.valor}"
+    
+
+class ConexaoBancaria(models.Model):
+    """
+    Armazena os tokens de acesso OAuth2 para cada usuário e banco conectado.
+    """
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conexoes_bancarias')
+    banco = models.CharField(max_length=100, default="Banco do Brasil")
+
+    access_token = EncryptedCharField(max_length=1024)
+    refresh_token = EncryptedCharField(max_length=1024)
+
+    expira_em = models.DateTimeField(help_text="Data e hora de expiração do access_token")
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [['usuario', 'banco']]
+
+    def __str__(self):
+        return f"Conexão de {self.usuario.username} com {self.banco}"

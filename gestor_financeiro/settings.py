@@ -9,6 +9,10 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from pathlib import Path
 
@@ -38,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
-
+    'encrypted_model_fields',
     'core'
 ]
 
@@ -131,3 +135,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'core:login'          # ONDE FICA A PÁGINA DE LOGIN
 LOGIN_REDIRECT_URL = 'core:home'  # PARA ONDE IR APÓS O LOGIN
 LOGOUT_REDIRECT_URL = 'core:home' # PARA ONDE IR APÓS O LOGOUT
+
+FIELD_ENCRYPTION_KEY = os.getenv('FIELD_ENCRYPTION_KEY')
+
+# NOVAS VARIÁVEIS DE CONFIGURAÇÃO DO BB
+BB_CLIENT_ID = os.getenv('BB_CLIENT_ID')
+BB_CLIENT_SECRET = os.getenv('BB_CLIENT_SECRET')
+BB_GW_DEV_APP_KEY = os.getenv('BB_GW_DEV_APP_KEY')
+BB_BASIC = os.getenv('BB_BASIC')
+
+# NOVAS URLs DE SANDBOX/HOMOLOGAÇÃO DO BB
+BB_AUTH_URL = 'https://oauth.hm.bb.com.br/ui/authorize'
+BB_TOKEN_URL = 'https://oauth.hm.bb.com.br/oauth2/token'

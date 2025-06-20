@@ -1,15 +1,18 @@
 # core/views.py
 import json
-
 from decimal import Decimal
+from datetime import date, timedelta
+
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Q, Window, F, Case, When, DecimalField
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.safestring import mark_safe
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.conf import settings
+from django.utils import timezone
 
 # Importa as views de autenticação que já criamos
 from django.urls import reverse_lazy
@@ -23,6 +26,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
 from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, CSVImportForm, ConciliacaoForm
 from . import services
+from .services import banco_brasil_service
 
 
 @login_required
@@ -490,3 +494,41 @@ def iniciar_fila_edicao_view(request):
         return JsonResponse({'status': 'success', 'redirect_url': redirect_url})
     except (json.JSONDecodeError, TypeError, ValueError):
         return JsonResponse({'status': 'error', 'message': 'Requisição inválida.'}, status=400)
+    
+
+@login_required
+def sincronizar_extrato_bb_view(request, conta_pk):
+    conta = get_object_or_404(ContaBancaria, pk=conta_pk, usuario=request.user)
+    
+    # Define um período para buscar (ex: últimos 30 dias)
+    data_fim = date.today()
+    data_inicio = data_fim - timedelta(days=30)
+    
+    # Formata as datas para o padrão da API (DDMMAAAA)
+    data_inicio_str = data_inicio.strftime('%d%m%Y')
+    data_fim_str = data_fim.strftime('%d%m%Y')
+
+    # Chama nosso serviço para buscar o extrato
+    extrato_data = banco_brasil_service.get_extrato(
+        agencia=conta.agencia,
+        conta=conta.numero_conta,
+        data_inicio=data_inicio_str,
+        data_fim=data_fim_str
+    )
+    
+    if extrato_data and 'listaLancamento' in extrato_data:
+        novos_lancamentos = banco_brasil_service.mapear_e_salvar_lancamentos(
+            usuario=request.user,
+            conta_bancaria=conta,
+            lista_lancamentos_api=extrato_data['listaLancamento']
+        )
+        
+        # Mensagem de sucesso agora informa quantos lançamentos *novos* foram importados
+        if novos_lancamentos > 0:
+            messages.success(request, f"Sincronização bem-sucedida! {novos_lancamentos} novas transações foram importadas.")
+        else:
+            messages.info(request, "Sincronização bem-sucedida! Nenhum lançamento novo encontrado.")
+    else:
+        messages.error(request, "Falha ao sincronizar com o Banco do Brasil.")
+        
+    return redirect('core:lancamento_list', conta_pk=conta.pk)
