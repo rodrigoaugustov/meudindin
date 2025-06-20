@@ -1,165 +1,73 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<!-- Cabeçalho Principal -->
-<header class="bg-white shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav class="flex justify-between items-center h-16">
-            <!-- Logo -->
-            <div class="flex-shrink-0">
-                <p class="text-2xl font-bold text-blue-600">MeuDinDin.io</p>
-            </div>
-            <!-- Links de Navegação (Centro) -->
-            <div class="hidden md:block">
-                <div class="ml-10 flex items-baseline space-x-4">
-                    <a href="#" class="bg-gray-200 text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Painel</a>
-                    <a href="#" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Lançamentos</a>
-                    <a href="#" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Orçamento</a>
-                    <a href="#" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Cadastros</a>
-                    <a href="#" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Relatórios</a>
-                </div>
-            </div>
-        </nav>
-    </div>
-</header>
+{% load formatacao %}
 
-<!-- Conteúdo do Painel -->
+{% block content %}
 <main class="py-10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <!-- Coluna da Esquerda (Maior) -->
             <div class="lg:col-span-2 space-y-8">
-                <!-- Card: Fluxo de Caixa -->
+                <!-- Card: Evolução do Saldo Diário -->
                 <section class="bg-white rounded-lg shadow p-6 flex">
-                    <!-- Seletor de Data -->
+                    <!-- O seletor de data ainda é um placeholder -->
                     <div class="flex flex-col items-center justify-center bg-gray-50 rounded-lg p-4 mr-6">
                         <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                         <p class="text-sm font-bold text-gray-500 my-2">JUN</p>
                         <p class="text-3xl font-bold text-gray-800">25</p>
                         <svg class="h-6 w-6 text-gray-400 mt-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                     </div>
-                    <!-- Conteúdo do Gráfico -->
+                    
                     <div class="w-full">
-                        <h2 class="text-lg font-semibold text-gray-800">Fluxo de Caixa</h2>
-                        <div class="mt-4 h-64 bg-gray-100 rounded-md flex items-center justify-center">
-                            <!-- NOTA: O gráfico de linha seria renderizado aqui por uma biblioteca JS (ex: Chart.js) -->
-                            <p class="text-gray-400 text-sm">Placeholder para Gráfico de Linha</p>
-                        </div>
-                        <div class="mt-4 space-y-2">
-                            <div class="flex justify-between items-center text-sm">
-                                <p><span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-2"></span>Conta 1</p>
-                                <p class="font-medium">R$ 1.245,12</p>
-                            </div>
-                            <div class="flex justify-between items-center text-sm">
-                                <p><span class="inline-block h-3 w-3 rounded-full bg-green-500 mr-2"></span>Conta 2</p>
-                                <p class="font-medium">R$ 691,12</p>
-                            </div>
-                            <div class="flex justify-between items-center text-sm text-gray-400">
-                                <p><span class="inline-block h-3 w-3 rounded-full bg-yellow-400 mr-2"></span>Conta 3</p>
-                                <p class="font-medium">R$ 0,00</p>
-                            </div>
-                            <hr class="my-2">
-                            <div class="flex justify-between items-center font-bold text-gray-800">
-                                <p>Total</p>
-                                <p>R$ 1.906,24</p>
-                            </div>
+                        <h2 class="text-lg font-semibold text-gray-800">Evolução do Saldo Diário (Últimos 30 dias)</h2>
+                        
+                        <!-- Local do Gráfico -->
+                        <div class="mt-4 h-64">
+                            <canvas id="saldoDiarioChart"></canvas>
                         </div>
                     </div>
                 </section>
 
-                <!-- Card: Despesas por Categorias -->
+                <!-- Card: Despesas por Categorias (Ainda estático) -->
                 <section class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-lg font-semibold text-gray-800">Despesas por Categorias</h2>
-                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                        <!-- Gráfico de Pizza -->
-                        <div class="h-48 w-48 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
-                            <!-- NOTA: O gráfico de pizza seria renderizado aqui -->
-                             <p class="text-gray-400 text-sm text-center">Placeholder para Gráfico de Pizza</p>
-                        </div>
-                        <!-- Tabela de Despesas -->
-                        <div class="text-sm">
-                            <div class="flex justify-between text-gray-500 font-semibold mb-2">
-                                <p>Categoria</p>
-                                <div>
-                                    <span class="mr-8">Orçado</span>
-                                    <span>Realizado</span>
-                                </div>
-                            </div>
-                            <div class="space-y-3">
-                                <div class="flex justify-between items-center">
-                                    <p><span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-2"></span>Lazer</p>
-                                    <div>
-                                        <span class="text-gray-500 w-20 inline-block text-right mr-4">-R$ 1.016,97</span>
-                                        <span class="font-semibold text-red-500 w-20 inline-block text-right">-R$ 1.016,97</span>
-                                    </div>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <p><span class="inline-block h-3 w-3 rounded-full bg-red-500 mr-2"></span>Ajustes</p>
-                                    <div>
-                                        <span class="text-gray-500 w-20 inline-block text-right mr-4">-R$ 872,19</span>
-                                        <span class="font-semibold text-red-500 w-20 inline-block text-right">-R$ 872,19</span>
-                                    </div>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <p><span class="inline-block h-3 w-3 rounded-full bg-orange-400 mr-2"></span>Filhos</p>
-                                    <div>
-                                        <span class="text-gray-500 w-20 inline-block text-right mr-4">-R$ 678,95</span>
-                                        <span class="font-semibold text-red-500 w-20 inline-block text-right">-R$ 678,95</span>
-                                    </div>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <p><span class="inline-block h-3 w-3 rounded-full bg-yellow-400 mr-2"></span>Farmácia</p>
-                                    <div>
-                                        <span class="text-gray-500 w-20 inline-block text-right mr-4">-R$ 532,62</span>
-                                        <span class="font-semibold text-red-500 w-20 inline-block text-right">-R$ 532,62</span>
-                                    </div>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <p><span class="inline-block h-3 w-3 rounded-full bg-gray-500 mr-2"></span>Outras</p>
-                                    <div>
-                                        <span class="text-gray-500 w-20 inline-block text-right mr-4">-R$ 1.220,08</span>
-                                        <span class="font-semibold text-red-500 w-20 inline-block text-right">-R$ 1.220,08</span>
-                                    </div>
-                                </div>
-                                <hr>
-                                <div class="flex justify-between items-center font-bold">
-                                    <p>Total</p>
-                                    <p class="text-red-500 w-20 inline-block text-right">-R$ 4.320,81</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="mt-4 h-64 bg-gray-100 rounded-md flex items-center justify-center">
+                        <p class="text-gray-400 text-sm">Placeholder para Gráfico de Pizza</p>
                     </div>
                 </section>
             </div>
 
             <!-- Coluna da Direita (Menor) -->
             <div class="lg:col-span-1 space-y-8">
-                <!-- Card: Variação Caixa Mensal -->
+                <!-- Card: Resumo Financeiro (Com os dados dinâmicos de volta) -->
                 <section class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-lg font-semibold text-gray-800">Variação Caixa Mensal</h2>
-                    <div class="mt-4 h-48 bg-gray-100 rounded-md flex items-center justify-center">
-                        <!-- NOTA: O gráfico de barras seria renderizado aqui -->
-                        <p class="text-gray-400 text-sm">Placeholder para Gráfico de Barras</p>
-                    </div>
-                     <div class="mt-4 space-y-2">
+                    <h2 class="text-lg font-semibold text-gray-800">Resumo Financeiro</h2>
+                    <div class="mt-4 space-y-2">
+                        <h3 class="font-semibold text-gray-700">Contas</h3>
+                        {% for conta in contas_bancarias %}
                         <div class="flex justify-between items-center text-sm">
-                            <p><span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-2"></span>Conta 1</p>
-                            <p class="font-medium">R$ 1.245,12</p>
+                            <p><span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-2"></span>{{ conta.nome_banco }}</p>
+                            <p class="font-medium">R$ {{ conta.saldo_atual|brl }}</p>
                         </div>
-                        <div class="flex justify-between items-center text-sm">
-                            <p><span class="inline-block h-3 w-3 rounded-full bg-green-500 mr-2"></span>Conta 2</p>
-                            <p class="font-medium">R$ 691,12</p>
-                        </div>
-                        <div class="flex justify-between items-center text-sm text-gray-400">
-                            <p><span class="inline-block h-3 w-3 rounded-full bg-yellow-400 mr-2"></span>Conta 3</p>
-                            <p class="font-medium">R$ 0,00</p>
-                        </div>
+                        {% empty %}
+                            <p class="text-sm text-gray-500">Nenhuma conta cadastrada.</p>
+                        {% endfor %}
                         <hr class="my-2">
                         <div class="flex justify-between items-center font-bold text-gray-800">
-                            <p>Total</p>
-                            <p>R$ 1.906,24</p>
+                            <p>Total em Contas</p>
+                            <p>R$ {{ total_contas|brl }}</p>
                         </div>
+                        
+                        <h3 class="font-semibold text-gray-700 mt-4">Cartões de Crédito</h3>
+                        {% for cartao in cartoes_de_credito %}
+                        <div class="flex justify-between items-center text-sm">
+                            <p><span class="inline-block h-3 w-3 rounded-full bg-orange-500 mr-2"></span>{{ cartao.nome_cartao }}</p>
+                            <p class="font-medium">Limite: R$ {{ cartao.limite|brl }}</p>
+                        </div>
+                        {% empty %}
+                            <p class="text-sm text-gray-500">Nenhum cartão de crédito cadastrado.</p>
+                        {% endfor %}
                     </div>
                 </section>
             </div>
@@ -167,11 +75,72 @@
     </div>
 </main>
 
-<!-- Botão de Ação Flutuante (FAB) -->
-<button class="fixed bottom-8 right-8 bg-red-500 hover:bg-red-600 text-white rounded-full p-4 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+<!-- Botão Flutuante -->
+<a href="{% url 'core:lancamento_create' %}" class="fixed bottom-8 right-8 bg-red-500 hover:bg-red-600 text-white rounded-full p-4 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" title="Adicionar Novo Lançamento">
     <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
     </svg>
-</button>
-
+</a>
 {% endblock content %}
+
+{% block scripts %}
+ {{ block.super }}
+<!-- Script do Chart.js (mantido como antes) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const labels = {{ chart_labels|safe }};
+    const dataPoints = {{ chart_data|safe }};
+
+    if (labels.length > 0 && dataPoints.length > 0) {
+        const ctx = document.getElementById('saldoDiarioChart');
+        if (ctx) { // Adiciona verificação para ter certeza que o elemento canvas existe
+            const saldoChart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Saldo Consolidado',
+                        data: dataPoints,
+                        fill: false,
+                        borderColor: 'rgb(59, 130, 246)',
+                        tension: 0.1,
+                        pointRadius: 2,
+                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+});
+</script>
+{% endblock scripts %}

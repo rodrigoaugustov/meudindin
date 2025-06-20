@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Editar Categoria{% else %}Adicionar Categoria{% endif %}{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div class="bg-white shadow-lg rounded-lg p-8"><h1 class="text-2xl font-bold text-gray-900 mb-6">{% if object %}Editar Categoria{% else %}Adicionar Nova Categoria{% endif %}</h1><form method="post"><div class="space-y-6">{% csrf_token %}{% for field in form %}<div><label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="mt-2 text-sm text-red-600">{{ error }}</p>{% endfor %}</div>{% endfor %}</div><div class="mt-8 flex justify-end space-x-4"><a href="{% url 'core:categoria_list' %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</a><button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">Salvar</button></div></form></div>
+</div>
+{% endblock %}

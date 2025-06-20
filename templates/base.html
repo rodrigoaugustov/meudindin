@@ -12,11 +12,76 @@
 </head>
 <body class="h-full">
     <div class="min-h-full">
+
+        <header class="bg-white shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav class="flex justify-between items-center h-16">
+            <!-- Logo -->
+            <div class="flex-shrink-0">
+                <a href="{% url 'core:home' %}" class="text-2xl font-bold text-blue-600">MeuDinDin.io</a>
+            </div>
+            
+            <!-- Links de Navegação (Centro) -->
+            <div class="hidden md:block">
+                <div class="ml-10 flex items-baseline space-x-4">
+                    {% if user.is_authenticated %}
+                        <!-- Links para Usuários Logados -->
+                        <a href="{% url 'core:home' %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Painel</a>
+                        <a href="#" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Lançamentos</a>
+                        <a href="#" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Orçamento</a>
+                        
+                        <!-- NOVO: Dropdown de Cadastros -->
+                        <div class="relative" id="cadastros-menu">
+                            <button onclick="toggleMenu()" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                                <span>Cadastros</span>
+                                <svg class="ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            </button>
+                            <div id="cadastros-menu-items" class="hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5">
+                                <a href="{% url 'core:conta_list' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Contas</a>
+                                <a href="{% url 'core:cartao_list' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Cartões</a>
+                                <a href="{% url 'core:categoria_list' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Categorias</a>
+                            </div>
+                        </div>
+                        
+                        <!-- Formulário de Logout -->
+                        <form action="{% url 'core:logout' %}" method="post" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                                Logout ({{ user.username }})
+                            </button>
+                        </form>
+                    {% else %}
+                        <!-- Links para Visitantes -->
+                        <a href="{% url 'core:login' %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Login</a>
+                        <a href="{% url 'core:signup' %}" class="bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium">Registrar-se</a>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </div>
+</header>
         <!-- Bloco de conteúdo principal que será substituído por cada página -->
-        {% block content %}{% endblock content %}
+        <main>
+            {% block content %}{% endblock content %}
+        </main>
+
     </div>
 
     <!-- Bloco para scripts JavaScript no final da página -->
-    {% block scripts %}{% endblock scripts %}
+    {% block scripts %}
+    <script>
+        function toggleMenu() {
+            const menu = document.getElementById('cadastros-menu-items');
+            menu.classList.toggle('hidden');
+        }
+        // Fecha o menu se clicar fora dele
+        window.addEventListener('click', function(e) {
+            const menuContainer = document.getElementById('cadastros-menu');
+            if (!menuContainer.contains(e.target)) {
+                document.getElementById('cadastros-menu-items').classList.add('hidden');
+            }
+        });
+    </script>
+    {% endblock scripts %}
 </body>
 </html>

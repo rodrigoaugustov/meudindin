@@ -3,6 +3,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Sum
+from decimal import Decimal
 
 # --- Modelos Principais de Cadastros ---
 
@@ -13,11 +15,26 @@ class ContaBancaria(models.Model):
     agencia = models.CharField(max_length=20, blank=True, null=True)
     numero_conta = models.CharField(max_length=30)
     saldo_inicial = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+    data_saldo_inicial = models.DateField(
+        help_text="Data correspondente ao saldo inicial informado."
+    )
 
     class Meta:
         verbose_name = "Conta Bancária"
         verbose_name_plural = "Contas Bancárias"
         unique_together = [['usuario', 'agencia', 'numero_conta']]
+
+    @property
+    def saldo_atual(self):
+        """Calcula e retorna o saldo atual da conta."""
+        # Soma todos os lançamentos de crédito associados a esta conta
+        soma_creditos = self.lancamentos.filter(tipo='C').aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
+        
+        # Soma todos os lançamentos de débito associados a esta conta
+        soma_debitos = self.lancamentos.filter(tipo='D').aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
+        
+        saldo = self.saldo_inicial + soma_creditos - soma_debitos
+        return saldo
 
     def __str__(self):
         return f"{self.nome_banco} ({self.numero_conta}) - {self.usuario.username}"
@@ -46,18 +63,28 @@ class CartaoCredito(models.Model):
 
 
 class Categoria(models.Model):
-    """Representa uma categoria de despesa ou receita do usuário."""
-    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='categorias')
+    """Representa uma categoria de despesa ou receita."""
+    # MODIFICAÇÃO: Adicione null=True e blank=True
+    usuario = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='categorias',
+        null=True,  # Permite que o campo seja nulo no banco de dados
+        blank=True  # Permite que o campo seja vazio nos formulários do Django
+    )
     nome = models.CharField(max_length=100)
 
     class Meta:
         verbose_name = "Categoria"
         verbose_name_plural = "Categorias"
-        # Garante que um usuário não pode ter duas categorias com o mesmo nome.
+        # A restrição agora precisa considerar que o usuário pode ser nulo.
         unique_together = [['usuario', 'nome']]
 
     def __str__(self):
-        return f"{self.nome} ({self.usuario.username})"
+        # Adapta o __str__ para mostrar se é uma categoria do sistema
+        if self.usuario:
+            return f"{self.nome} ({self.usuario.username})"
+        return f"{self.nome} [Sistema]"
 
 
 # --- Modelo Central de Transações ---
@@ -79,10 +106,22 @@ class Lancamento(models.Model):
     )
     tipo = models.CharField(max_length=1, choices=TipoTransacao.choices)
     conciliado = models.BooleanField(default=False, help_text="Marca se o lançamento já foi verificado.")
+    numero_documento = models.CharField(
+        max_length=100, 
+        null=True, blank=True,
+        db_index=True # Ajuda em buscas futuras
+    )
+    import_hash = models.CharField(
+        max_length=32,          # Um hash MD5 tem 32 caracteres
+        unique=True,            # Garante a nível de DB que não haja duplicatas
+        null=True, blank=True,  # Permite que lançamentos manuais não tenham hash
+        db_index=True,          # Essencial para buscas rápidas neste campo
+        editable=False          # Este campo não deve ser editado manualmente
+    )
 
     # Relacionamentos (um lançamento pode pertencer a uma categoria, conta ou cartão)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
-    conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.CASCADE, null=True, blank=True)
+    conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.CASCADE, null=True, blank=True, related_name='lancamentos')
     cartao_credito = models.ForeignKey(CartaoCredito, on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:

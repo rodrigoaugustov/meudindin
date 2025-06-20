@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load formatacao %} {# Carrega a nossa tag de formatação BRL #}
+
+{% block title %}Extrato - {{ conta.nome_banco }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Extrato: {{ conta.nome_banco }}</h1>
+        <div class="flex space-x-2">
+            <a href="{% url 'core:importar_csv' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Importar Extrato</a>
+            <a href="{% url 'core:lancamento_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">Adicionar Lançamento</a>
+        </div>
+    </div>
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <ul class="divide-y divide-gray-200">
+            <!-- CABEÇALHO: Usa a propriedade saldo_atual da conta, que é sempre correta -->
+            <li class="px-4 py-3 sm:px-6 flex items-center justify-between font-semibold text-gray-600 bg-gray-50">
+                <span>SALDO ATUAL</span>
+                <span class="text-lg">R$ {{ conta.saldo_atual|brl }}</span>
+            </li>
+            
+            {% for lancamento in lancamentos %}
+            <li class="px-4 py-3 sm:px-6 flex items-center justify-between hover:bg-gray-50">
+                <div class="flex items-center space-x-4">
+                    <span class="h-3 w-3 rounded-full {% if lancamento.conciliado %}bg-purple-500{% else %}bg-green-500{% endif %}" title="{% if lancamento.conciliado %}Conciliado{% else %}Confirmado{% endif %}"></span>
+                    <span class="text-sm text-gray-500">{{ lancamento.data_caixa|date:"d/m/Y" }}</span>
+                    <div>
+                        <p class="text-md font-medium text-gray-800">{{ lancamento.descricao }}</p>
+                        <p class="text-sm text-gray-500">{{ lancamento.categoria.nome|default:"Sem Categoria" }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-8">
+                    <span class="text-md font-semibold w-32 text-right {% if lancamento.tipo == 'D' %}text-red-600{% else %}text-green-600{% endif %}">
+                        R$ {{ lancamento.valor_com_sinal|brl }}
+                    </span>
+                    <span class="w-28 text-right text-gray-700 font-medium">
+                        R$ {{ lancamento.saldo_final_linha|brl }}
+                    </span>
+                </div>
+            </li>
+            {% endfor %}
+            
+            <!-- RODAPÉ: Saldo Inicial -->
+            <li class="px-4 py-3 sm:px-6 flex items-center justify-between font-semibold text-gray-600 bg-gray-50">
+                <span>SALDO INICIAL EM {{ conta.data_saldo_inicial|date:"d/m/Y" }}</span>
+                <span>R$ {{ conta.saldo_inicial|brl }}</span>
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
