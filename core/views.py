@@ -13,9 +13,12 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Q, Window, F, Case, When, DecimalField, Value
 from django.shortcuts import get_object_or_404
 from django.utils.safestring import mark_safe
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 # Importa as views de autenticação que já criamos
 from django.urls import reverse_lazy
+from django.urls import reverse
 from django.views.generic.edit import CreateView
 from django.contrib.auth.forms import UserCreationForm
 
@@ -23,7 +26,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
-from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, CSVImportForm
+from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, CSVImportForm, ConciliacaoForm
 from .utils import gerar_hash_lancamento
 
 
@@ -263,8 +266,7 @@ class LancamentoListView(LoginRequiredMixin, ListView):
 
         # 1. Busca os lançamentos e anota o valor com sinal
         queryset = Lancamento.objects.filter(
-            conta_bancaria=self.conta,
-            data_caixa__gte=self.conta.data_saldo_inicial
+            conta_bancaria=self.conta
         ).annotate(
             valor_com_sinal=Case(
                 When(tipo='D', then=-F('valor')),
@@ -272,7 +274,7 @@ class LancamentoListView(LoginRequiredMixin, ListView):
                 output_field=DecimalField()
             )
         )
-        
+
         # 2. Anota o saldo parcial acumulado (cálculo pesado feito pelo DB)
         queryset = queryset.annotate(
             saldo_parcial=Window(
@@ -301,6 +303,61 @@ class LancamentoListView(LoginRequiredMixin, ListView):
         # --- FIM DA CORREÇÃO DEFINITIVA ---
 
         return context
+    
+class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
+    model = Lancamento
+    form_class = LancamentoForm
+    template_name = 'core/lancamento_form.html'
+    success_url = reverse_lazy('core:home') # Ou para onde você preferir
+
+    def get_queryset(self):
+        """Garante que o usuário só pode editar seus próprios lançamentos."""
+        return Lancamento.objects.filter(usuario=self.request.user)
+
+    def get_form_kwargs(self):
+        """Passa o usuário para o formulário para filtrar os dropdowns."""
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_success_url(self):
+        """Redireciona de volta para o extrato da conta do lançamento."""
+        return reverse_lazy('core:lancamento_list', kwargs={'conta_pk': self.object.conta_bancaria.pk})
+
+
+class LancamentoDeleteView(LoginRequiredMixin, DeleteView):
+    model = Lancamento
+    template_name = 'core/lancamento_confirm_delete.html'
+    
+    def get_queryset(self):
+        """Garante que o usuário só pode excluir seus próprios lançamentos."""
+        return Lancamento.objects.filter(usuario=self.request.user)
+    
+    def get_success_url(self):
+        """Redireciona de volta para o extrato da conta após a exclusão."""
+        # Precisamos pegar o pk da conta antes que o objeto seja deletado
+        self.conta_pk = self.object.conta_bancaria.pk
+        return reverse_lazy('core:lancamento_list', kwargs={'conta_pk': self.conta_pk})
+    
+@require_POST
+@login_required
+def excluir_lancamentos_em_massa(request):
+    try:
+        data = json.loads(request.body)
+        ids = data.get('ids', [])
+        
+        # Garante que os IDs são números e que pertencem ao usuário
+        lancamentos_a_excluir = Lancamento.objects.filter(
+            usuario=request.user, 
+            id__in=[int(id) for id in ids]
+        )
+        
+        count = lancamentos_a_excluir.count()
+        lancamentos_a_excluir.delete()
+        
+        return JsonResponse({'status': 'success', 'deleted_count': count})
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Requisição inválida.'}, status=400)
 
     
 @login_required
@@ -425,3 +482,71 @@ def confirmar_importacao_view(request):
         return redirect('core:lancamento_list', conta_pk=conta.pk)
 
     return redirect('core:importar_csv')
+
+
+@login_required
+def conciliar_lancamento_view(request, pk):
+    lancamento = get_object_or_404(Lancamento, pk=pk, usuario=request.user)
+
+    if request.method == 'POST':
+        form = ConciliacaoForm(request.POST)
+        if form.is_valid():
+            lancamento.data_caixa = form.cleaned_data['data_caixa']
+            lancamento.valor = form.cleaned_data['valor']
+            lancamento.conciliado = True
+            lancamento.save()
+            messages.success(request, "Lançamento conciliado com sucesso!")
+            queue = request.session.get('conciliation_queue', [])
+
+            # Remove o item que acabamos de processar
+            if pk in queue:
+                queue.remove(pk)
+                
+            if queue:
+                next_id = queue[0]
+                request.session['conciliation_queue'] = queue # Salva a fila atualizada
+                # ...redireciona para o próximo item
+                return redirect('core:lancamento_conciliar', pk=next_id)
+            else:
+                # Se a fila acabou, limpa a chave da sessão e volta para o extrato
+                request.session.pop('conciliation_queue', None)
+                return redirect('core:lancamento_list', conta_pk=lancamento.conta_bancaria.pk)
+    else:
+        # Preenche o formulário com os dados existentes
+        form = ConciliacaoForm(initial={
+            'data_caixa': lancamento.data_caixa.strftime('%Y-%m-%d'),
+            'valor': lancamento.valor
+        })
+
+    context = {
+        'form': form,
+        'lancamento': lancamento
+    }
+    return render(request, 'core/conciliar_lancamento.html', context)
+
+@require_POST
+@login_required
+def iniciar_fila_conciliacao_view(request):
+    try:
+        data = json.loads(request.body)
+        ids = [int(id_str) for id_str in data.get('ids', [])]
+
+        # Validação: Garante que todos os IDs pertencem ao usuário
+        lancamentos_validos = Lancamento.objects.filter(usuario=request.user, id__in=ids)
+        ids_validos = list(lancamentos_validos.values_list('id', flat=True))
+
+        if not ids_validos:
+            return JsonResponse({'status': 'error', 'message': 'Nenhum lançamento válido selecionado.'}, status=400)
+
+        # Salva a fila de IDs válidos na sessão
+        request.session['conciliation_queue'] = ids_validos
+        
+        # Pega o primeiro ID para iniciar o fluxo
+        primeiro_id = ids_validos[0]
+        
+        # Gera a URL de redirecionamento para o primeiro item
+        redirect_url = reverse('core:lancamento_conciliar', kwargs={'pk': primeiro_id})
+        
+        return JsonResponse({'status': 'success', 'redirect_url': redirect_url})
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Requisição inválida.'}, status=400)

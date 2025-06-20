@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br" class="h-full bg-gray-100">
 <head>
@@ -7,6 +8,7 @@
     
     <!-- Carregando o Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     {% block head %}{% endblock head %}
 </head>
@@ -69,19 +71,7 @@
 
     <!-- Bloco para scripts JavaScript no final da página -->
     {% block scripts %}
-    <script>
-        function toggleMenu() {
-            const menu = document.getElementById('cadastros-menu-items');
-            menu.classList.toggle('hidden');
-        }
-        // Fecha o menu se clicar fora dele
-        window.addEventListener('click', function(e) {
-            const menuContainer = document.getElementById('cadastros-menu');
-            if (!menuContainer.contains(e.target)) {
-                document.getElementById('cadastros-menu-items').classList.add('hidden');
-            }
-        });
-    </script>
     {% endblock scripts %}
+    <script src="{% static 'js/components/dropdown.js' %}" defer></script>
 </body>
 </html>
