@@ -169,3 +169,19 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'core:login'          # ONDE FICA A PÁGINA DE LOGIN
 LOGIN_REDIRECT_URL = 'core:home'  # PARA ONDE IR APÓS O LOGIN
 LOGOUT_REDIRECT_URL = 'core:home' # PARA ONDE IR APÓS O LOGOUT
+
+# Para aplicações rodando atrás de um proxy (como no Cloud Run),
+# esta configuração informa ao Django para confiar no cabeçalho
+# que o proxy envia para indicar uma conexão segura.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Esta é a correção principal.
+# Lista os domínios que são permitidos para fazer requisições POST seguras.
+# Usar o wildcard '*.run.app' é uma forma segura e flexível de permitir
+# que qualquer URL do Cloud Run funcione.
+CSRF_TRUSTED_ORIGINS = ['https://*.run.app']
+
+# Opcional, mas recomendado para produção:
+# Garante que os cookies CSRF e de sessão só sejam enviados via HTTPS.
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
