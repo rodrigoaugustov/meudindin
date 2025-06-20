@@ -24,5 +24,21 @@ steps:
       - '--allow-unauthenticated' # Permite acesso público
       - '--add-cloudsql-instances=meudindin-463521:southamerica-east1:meudindin-db'
       - '--set-secrets=db_user=db_user:latest,db_password=db_password:latest,db_name=db_name:latest,django_secret_key=django_secret_key:latest,db_connection_name=db_connection_name:latest'
+
+        # Passo 4 (NOVO): Marcar a imagem recém-implantada com a tag 'production'
+  # Isso garante que a imagem em uso nunca seja excluída pela política de limpeza.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'artifacts'
+      - 'docker'
+      - 'tags'
+      - 'add'
+      # A imagem de origem (com a tag SHA do commit)
+      - 'gcr.io/$PROJECT_ID/meudindin:$COMMIT_SHA'
+      # A nova tag que estamos adicionando (a tag 'production')
+      - 'gcr.io/$PROJECT_ID/meudindin:production'
+    # 'waitFor' garante que este passo só execute após o deploy ser concluído.
+    waitFor: ['Deploy']
 options:
   logging: CLOUD_LOGGING_ONLY
