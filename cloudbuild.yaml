@@ -24,3 +24,5 @@ steps:
       - '--allow-unauthenticated' # Permite acesso público
       - '--add-cloudsql-instances==meudindin-463521:southamerica-east1:meudindin-db'
       - --set-secrets=db_user=db_user:latest,db_password=db_password:latest,db_name=db_name:latest,django_secret_key=django_secret_key:latest,db_connection_name=db_connection_name:latest
+options:
+  logging: CLOUD_LOGGING_ONLY
