@@ -1,25 +1,21 @@
 services:
-  # O Servidor Web da nossa aplicação Django
   - type: web
     name: meudindin-io
     env: python
-    # Comando para instalar as dependências
     buildCommand: "./build.sh"
-    # Comando para iniciar o servidor com Gunicorn
     startCommand: "gunicorn gestor_financeiro.wsgi:application"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: meudindin-db # Nome do serviço de banco de dados abaixo
+          name: meudindin-db
           property: connectionString
       - key: SECRET_KEY
-        generateValue: true # O Render vai gerar uma chave segura automaticamente
+        generateValue: true
       - key: RENDER
-        value: "True" # Indica que estamos no ambiente Render
+        value: "True"
 
-  # O Banco de Dados PostgreSQL
   - type: psql
     name: meudindin-db
-    ipAllowList: [] # Permite acesso de qualquer lugar (necessário para o servidor web)
-    plan: free # O plano gratuito do banco de dados
+    ipAllowList: []
+    plan: free
     version: "14"
