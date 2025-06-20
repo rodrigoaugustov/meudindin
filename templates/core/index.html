@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load static %}
 {% load formatacao %}
 
 {% block content %}
@@ -23,7 +23,7 @@
                         <h2 class="text-lg font-semibold text-gray-800">Evolução do Saldo Diário (Últimos 30 dias)</h2>
                         
                         <!-- Local do Gráfico -->
-                        <div class="mt-4 h-64">
+                        <div class="mt-4 h-64" id="chart-container">
                             <canvas id="saldoDiarioChart"></canvas>
                         </div>
                     </div>
@@ -84,63 +84,12 @@
 {% endblock content %}
 
 {% block scripts %}
- {{ block.super }}
-<!-- Script do Chart.js (mantido como antes) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const labels = {{ chart_labels|safe }};
-    const dataPoints = {{ chart_data|safe }};
-
-    if (labels.length > 0 && dataPoints.length > 0) {
-        const ctx = document.getElementById('saldoDiarioChart');
-        if (ctx) { // Adiciona verificação para ter certeza que o elemento canvas existe
-            const saldoChart = new Chart(ctx.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Saldo Consolidado',
-                        data: dataPoints,
-                        fill: false,
-                        borderColor: 'rgb(59, 130, 246)',
-                        tension: 0.1,
-                        pointRadius: 2,
-                        pointBackgroundColor: 'rgb(59, 130, 246)',
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            ticks: {
-                                callback: function(value, index, values) {
-                                    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) { label += ': '; }
-                                    if (context.parsed.y !== null) {
-                                        label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+    {{ block.super }}
+    <script id="chart-data" type="application/json">
+        {
+            "labels": {{ chart_labels|safe }},
+            "points": {{ chart_data|safe }}
         }
-    }
-});
-</script>
+    </script>
+    <script src="{% static 'js/pages/dashboard_chart.js' %}" defer></script>
 {% endblock scripts %}

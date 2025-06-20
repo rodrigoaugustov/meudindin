@@ -152,3 +152,15 @@ class CSVImportForm(forms.Form):
         super().__init__(*args, **kwargs)
         if user:
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(usuario=user)
+
+class ConciliacaoForm(forms.Form):
+    # Usamos CharField para data para usar o widget de texto com tipo 'date'
+    data_caixa = forms.CharField(label="Data Efetiva", widget=forms.TextInput(attrs={'type': 'date', 'class': 'input-tailwind'}))
+    valor = forms.DecimalField(label="Valor Efetivo", widget=forms.NumberInput(attrs={'class': 'input-tailwind'}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Aplica as classes do Tailwind a todos os campos
+        tailwind_classes = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        for field_name, field in self.fields.items():
+            field.widget.attrs['class'] = tailwind_classes

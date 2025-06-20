@@ -23,7 +23,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
-from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, CSVImportForm
+from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, CSVImportForm, ConciliacaoForm
 from .utils import gerar_hash_lancamento
 
 
@@ -301,6 +301,41 @@ class LancamentoListView(LoginRequiredMixin, ListView):
         # --- FIM DA CORREÇÃO DEFINITIVA ---
 
         return context
+    
+class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
+    model = Lancamento
+    form_class = LancamentoForm
+    template_name = 'core/lancamento_form.html'
+    success_url = reverse_lazy('core:home') # Ou para onde você preferir
+
+    def get_queryset(self):
+        """Garante que o usuário só pode editar seus próprios lançamentos."""
+        return Lancamento.objects.filter(usuario=self.request.user)
+
+    def get_form_kwargs(self):
+        """Passa o usuário para o formulário para filtrar os dropdowns."""
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_success_url(self):
+        """Redireciona de volta para o extrato da conta do lançamento."""
+        return reverse_lazy('core:lancamento_list', kwargs={'conta_pk': self.object.conta_bancaria.pk})
+
+
+class LancamentoDeleteView(LoginRequiredMixin, DeleteView):
+    model = Lancamento
+    template_name = 'core/lancamento_confirm_delete.html'
+    
+    def get_queryset(self):
+        """Garante que o usuário só pode excluir seus próprios lançamentos."""
+        return Lancamento.objects.filter(usuario=self.request.user)
+    
+    def get_success_url(self):
+        """Redireciona de volta para o extrato da conta após a exclusão."""
+        # Precisamos pegar o pk da conta antes que o objeto seja deletado
+        self.conta_pk = self.object.conta_bancaria.pk
+        return reverse_lazy('core:lancamento_list', kwargs={'conta_pk': self.conta_pk})
 
     
 @login_required
@@ -425,3 +460,30 @@ def confirmar_importacao_view(request):
         return redirect('core:lancamento_list', conta_pk=conta.pk)
 
     return redirect('core:importar_csv')
+
+
+@login_required
+def conciliar_lancamento_view(request, pk):
+    lancamento = get_object_or_404(Lancamento, pk=pk, usuario=request.user)
+
+    if request.method == 'POST':
+        form = ConciliacaoForm(request.POST)
+        if form.is_valid():
+            lancamento.data_caixa = form.cleaned_data['data_caixa']
+            lancamento.valor = form.cleaned_data['valor']
+            lancamento.conciliado = True
+            lancamento.save()
+            messages.success(request, "Lançamento conciliado com sucesso!")
+            return redirect('core:lancamento_list', conta_pk=lancamento.conta_bancaria.pk)
+    else:
+        # Preenche o formulário com os dados existentes
+        form = ConciliacaoForm(initial={
+            'data_caixa': lancamento.data_caixa.strftime('%Y-%m-%d'),
+            'valor': lancamento.valor
+        })
+
+    context = {
+        'form': form,
+        'lancamento': lancamento
+    }
+    return render(request, 'core/conciliar_lancamento.html', context)

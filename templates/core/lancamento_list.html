@@ -1,53 +1,64 @@
 {% extends "base.html" %}
-{% load formatacao %} {# Carrega a nossa tag de formatação BRL #}
+{% load formatacao %}
 
 {% block title %}Extrato - {{ conta.nome_banco }}{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <!-- ### INÍCIO: BARRA DE AÇÕES CONTEXTUAL (ESCONDIDA) ### -->
+    <div id="action-bar" class="hidden fixed top-16 left-0 right-0 h-16 bg-blue-100 border-b border-blue-200 z-10 shadow-md flex items-center justify-between px-8 transition-all">
+        <div class="flex items-center space-x-4">
+            <button onclick="clearSelection()" class="text-gray-600 hover:text-gray-900">×</button>
+            <div>
+                <span id="selection-count" class="font-bold text-blue-800">0 lançamentos marcados</span>
+                <span class="text-sm text-blue-700">Total: <span id="selection-total">R$ 0,00</span></span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button id="btn-conciliar" class="text-gray-700 hover:text-purple-600 p-2 rounded-full" title="Conciliar"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button>
+            <button id="btn-editar" class="text-gray-700 hover:text-indigo-600 p-2 rounded-full" title="Editar"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+            <button id="btn-excluir" class="text-gray-700 hover:text-red-600 p-2 rounded-full" title="Excluir"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+        </div>
+    </div>
+    <!-- ### FIM: BARRA DE AÇÕES ### -->
+
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-900">Extrato: {{ conta.nome_banco }}</h1>
-        <div class="flex space-x-2">
-            <a href="{% url 'core:importar_csv' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Importar Extrato</a>
-            <a href="{% url 'core:lancamento_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">Adicionar Lançamento</a>
-        </div>
+        <!-- ... (botões Importar/Adicionar) ... -->
     </div>
 
     <div class="bg-white shadow overflow-hidden sm:rounded-lg">
         <ul class="divide-y divide-gray-200">
-            <!-- CABEÇALHO: Usa a propriedade saldo_atual da conta, que é sempre correta -->
-            <li class="px-4 py-3 sm:px-6 flex items-center justify-between font-semibold text-gray-600 bg-gray-50">
-                <span>SALDO ATUAL</span>
-                <span class="text-lg">R$ {{ conta.saldo_atual|brl }}</span>
-            </li>
+            <!-- ... (Cabeçalho e Rodapé do Extrato) ... -->
             
             {% for lancamento in lancamentos %}
-            <li class="px-4 py-3 sm:px-6 flex items-center justify-between hover:bg-gray-50">
+            <li class="px-4 py-3 sm:px-6 flex items-center justify-between hover:bg-gray-50 group">
                 <div class="flex items-center space-x-4">
-                    <span class="h-3 w-3 rounded-full {% if lancamento.conciliado %}bg-purple-500{% else %}bg-green-500{% endif %}" title="{% if lancamento.conciliado %}Conciliado{% else %}Confirmado{% endif %}"></span>
+                    <!-- ### INÍCIO: CHECKBOX INTERATIVO ### -->
+                    <div class="relative w-5 h-5 flex items-center justify-center">
+                        <span class="h-3 w-3 rounded-full {% if lancamento.conciliado %}bg-purple-500{% else %}bg-green-500{% endif %} group-hover:opacity-0 transition-opacity"></span>
+                        <input type="checkbox"
+                               class="absolute opacity-0 group-hover:opacity-100 h-5 w-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer transition-opacity"
+                               data-id="{{ lancamento.pk }}"
+                               data-valor="{{ lancamento.valor_com_sinal }}">
+                    </div>
+                    <!-- ### FIM: CHECKBOX INTERATIVO ### -->
                     <span class="text-sm text-gray-500">{{ lancamento.data_caixa|date:"d/m/Y" }}</span>
                     <div>
                         <p class="text-md font-medium text-gray-800">{{ lancamento.descricao }}</p>
                         <p class="text-sm text-gray-500">{{ lancamento.categoria.nome|default:"Sem Categoria" }}</p>
                     </div>
                 </div>
-                <div class="flex items-center space-x-8">
-                    <span class="text-md font-semibold w-32 text-right {% if lancamento.tipo == 'D' %}text-red-600{% else %}text-green-600{% endif %}">
-                        R$ {{ lancamento.valor_com_sinal|brl }}
-                    </span>
-                    <span class="w-28 text-right text-gray-700 font-medium">
-                        R$ {{ lancamento.saldo_final_linha|brl }}
-                    </span>
-                </div>
+                <!-- ... (valores) ... -->
             </li>
             {% endfor %}
-            
-            <!-- RODAPÉ: Saldo Inicial -->
-            <li class="px-4 py-3 sm:px-6 flex items-center justify-between font-semibold text-gray-600 bg-gray-50">
-                <span>SALDO INICIAL EM {{ conta.data_saldo_inicial|date:"d/m/Y" }}</span>
-                <span>R$ {{ conta.saldo_inicial|brl }}</span>
-            </li>
+            <!-- ... -->
         </ul>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="{% static 'js/pages/extrato_actions.js' %}" defer></script>
 {% endblock %}
