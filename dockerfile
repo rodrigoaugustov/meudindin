@@ -13,5 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copie o código da aplicação
 COPY . .
 
-# Comando para iniciar a aplicação
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "gestor_financeiro.wsgi:application"]
+# Dê permissão de execução ao script de entrypoint
+RUN chmod +x /app/entrypoint.sh
+
+# Defina o script de entrypoint como o comando de inicialização do container
+ENTRYPOINT ["/app/entrypoint.sh"]
