@@ -1,16 +1,11 @@
 # core/views.py
 import json
-import csv
-import io
-from datetime import date, timedelta
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Q, Window, F, Case, When, DecimalField, Value
+from django.db.models import Sum, Q, Window, F, Case, When, DecimalField
 from django.shortcuts import get_object_or_404
 from django.utils.safestring import mark_safe
 from django.http import JsonResponse
@@ -27,7 +22,6 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
 from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, CSVImportForm, ConciliacaoForm
-from .utils import gerar_hash_lancamento
 from . import services
 
 
@@ -219,28 +213,9 @@ class LancamentoListView(LoginRequiredMixin, ListView):
             usuario=self.request.user
         )
 
-        # 1. Busca os lançamentos e anota o valor com sinal
-        queryset = Lancamento.objects.filter(
+        return Lancamento.objects.filter(
             conta_bancaria=self.conta
-        ).annotate(
-            valor_com_sinal=Case(
-                When(tipo='D', then=-F('valor')),
-                default=F('valor'),
-                output_field=DecimalField()
-            )
-        )
-
-        # 2. Anota o saldo parcial acumulado (cálculo pesado feito pelo DB)
-        queryset = queryset.annotate(
-            saldo_parcial=Window(
-                expression=Sum('valor_com_sinal'),
-                order_by=[F('data_caixa').asc(), F('id').asc()]
-            )
-        )
-
-        # 3. Ordena para exibição correta (mais recente primeiro)
-        #    Esta query retorna OBJETOS LANCAMENTO COMPLETOS
-        return queryset.order_by('-data_caixa', '-id')
+        ).com_saldo_parcial().order_by('-data_caixa', '-id')
 
     def get_context_data(self, **kwargs):
         # Pega o contexto padrão (que inclui a lista paginada de 'lancamentos')

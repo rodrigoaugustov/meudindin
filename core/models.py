@@ -3,7 +3,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db.models import Sum
+from django.db.models import Sum, Q, Window, F, Case, When, DecimalField
 from decimal import Decimal
 
 # --- Modelos Principais de Cadastros ---
@@ -80,10 +80,31 @@ class Categoria(models.Model):
         if self.usuario:
             return f"{self.nome} ({self.usuario.username})"
         return f"{self.nome} [Sistema]"
+    
 
+# Métodos em um QuerySet são sempre encadeáveis.
+class LancamentoQuerySet(models.QuerySet):
+    def com_saldo_parcial(self):
+        """
+        Anota cada lançamento com o saldo parcial acumulado.
+        Este método agora é encadeável em qualquer queryset de Lançamento.
+        """
+        # 'self' aqui se refere ao queryset em si, por exemplo:
+        # o resultado de Lancamento.objects.filter(conta_bancaria=conta)
+        return self.annotate(
+            valor_com_sinal=Case(
+                When(tipo='D', then=-F('valor')),
+                default=F('valor'),
+                output_field=DecimalField()
+            )
+        ).annotate(
+            saldo_parcial=Window(
+                expression=Sum('valor_com_sinal'),
+                order_by=[F('data_caixa').asc(), F('id').asc()]
+            )
+        )
 
 # --- Modelo Central de Transações ---
-
 class Lancamento(models.Model):
     """Representa uma transação financeira (entrada ou saída)."""
 
@@ -118,6 +139,7 @@ class Lancamento(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.CASCADE, null=True, blank=True, related_name='lancamentos')
     cartao_credito = models.ForeignKey(CartaoCredito, on_delete=models.CASCADE, null=True, blank=True)
+    objects = LancamentoQuerySet.as_manager()
 
     class Meta:
         verbose_name = "Lançamento"
