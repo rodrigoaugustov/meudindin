@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
 
     'core'
 ]
@@ -126,3 +127,7 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = 'core:login'          # ONDE FICA A PÁGINA DE LOGIN
+LOGIN_REDIRECT_URL = 'core:home'  # PARA ONDE IR APÓS O LOGIN
+LOGOUT_REDIRECT_URL = 'core:home' # PARA ONDE IR APÓS O LOGOUT

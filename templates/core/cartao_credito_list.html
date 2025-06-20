@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Meus Cartões de Crédito{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Meus Cartões de Crédito</h1>
+        <a href="{% url 'core:cartao_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">Adicionar Novo Cartão</a>
+    </div>
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <ul class="divide-y divide-gray-200">
+            {% for cartao in cartoes %}
+            <li>
+                <div class="px-4 py-4 sm:px-6 flex items-center justify-between">
+                    <div>
+                        <p class="text-lg font-medium text-blue-600 truncate">{{ cartao.nome_cartao }}</p>
+                        <p class="text-sm text-gray-500">Vencimento dia {{ cartao.dia_vencimento }}</p>
+                    </div>
+                    <div class="flex-shrink-0 ml-4 flex items-center space-x-4">
+                        <span class="text-lg font-semibold text-gray-800">Limite: R$ {{ cartao.limite|floatformat:2 }}</span>
+                        <a href="{% url 'core:cartao_update' cartao.pk %}" class="text-indigo-600 hover:text-indigo-900">Editar</a>
+                        <a href="{% url 'core:cartao_delete' cartao.pk %}" class="text-red-600 hover:text-red-900">Excluir</a>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <li class="px-4 py-5 sm:px-6"><p class="text-center text-gray-500">Você ainda não cadastrou nenhum cartão de crédito.</p></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
