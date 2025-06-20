@@ -28,7 +28,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
 from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, CSVImportForm, ConciliacaoForm
 from .utils import gerar_hash_lancamento
-
+from . import services
 
 
 @login_required
@@ -42,52 +42,7 @@ def home(request):
     cartoes_de_credito = CartaoCredito.objects.filter(usuario=request.user)
     total_contas = sum(conta.saldo_calculado for conta in contas_bancarias)
 
-    chart_labels = []
-    chart_data = []
-
-    if contas_bancarias.exists():
-        # 1. Determina o período do gráfico (ex: últimos 30 dias)
-        hoje = date.today() + relativedelta(day=31)
-        data_inicio_grafico = hoje.replace(day=1)
-
-        # 2. Calcula o saldo total em (data_inicio_grafico - 1 dia)
-        #    Este será o nosso ponto de partida.
-        saldo_acumulado = 0
-        for conta in contas_bancarias:
-            # Saldo inicial da conta
-            saldo_conta = conta.saldo_inicial
-            # Soma/subtrai lançamentos ANTERIORES ao início do gráfico
-            lancamentos_passados = Lancamento.objects.filter(
-                conta_bancaria=conta,
-                data_caixa__lt=data_inicio_grafico,
-                data_caixa__gte=conta.data_saldo_inicial
-            ).aggregate(
-                soma_creditos=Sum('valor', filter=Q(tipo='C')),
-                soma_debitos=Sum('valor', filter=Q(tipo='D'))
-            )
-            saldo_conta += (lancamentos_passados['soma_creditos'] or 0)
-            saldo_conta -= (lancamentos_passados['soma_debitos'] or 0)
-            saldo_acumulado += saldo_conta
-        
-        # 3. Pega todos os lançamentos DENTRO do período do gráfico para otimizar
-        lancamentos_periodo = Lancamento.objects.filter(
-            usuario=request.user,
-            data_caixa__range=(data_inicio_grafico, hoje)
-        ).order_by('data_caixa')
-
-        # 4. Cria um dicionário com a mudança de saldo por dia
-        mudancas_diarias = {}
-        for lancamento in lancamentos_periodo:
-            valor_com_sinal = lancamento.valor if lancamento.tipo == 'C' else -lancamento.valor
-            mudancas_diarias[lancamento.data_caixa] = mudancas_diarias.get(lancamento.data_caixa, 0) + valor_com_sinal
-
-        # 5. Itera dia a dia, do início ao fim do período, e calcula o saldo final de cada dia
-        for i in range(30):
-            dia_atual = data_inicio_grafico + timedelta(days=i)
-            saldo_acumulado += mudancas_diarias.get(dia_atual, 0)
-            
-            chart_labels.append(dia_atual.strftime('%d/%m'))
-            chart_data.append(float(saldo_acumulado)) # Chart.js funciona melhor com float
+    chart_labels, chart_data = services.gerar_dados_grafico_saldo(request.user)
 
     context = {
         'contas_bancarias': contas_bancarias,
@@ -367,65 +322,11 @@ def importar_csv_view(request):
         if form.is_valid():
             csv_file = form.cleaned_data['csv_file']
             conta_selecionada = form.cleaned_data['conta_bancaria']
-            
-            try:
-                decoded_file = csv_file.read().decode('utf-8')
-            except UnicodeDecodeError:
-                csv_file.seek(0)
-                decoded_file = csv_file.read().decode('latin-1')
 
-            io_string = io.StringIO(decoded_file)
-            reader = csv.reader(io_string, delimiter=',')
-            next(reader, None) # Pula cabeçalho
-            hashes_existentes = set(Lancamento.objects.filter(
-                                                                conta_bancaria=conta_selecionada, 
-                                                                import_hash__isnull=False
-                                                            ).values_list('import_hash', flat=True))
-
-            lancamentos_a_revisar = []
-            for row in reader:
-                try:
-                    if not row[4] or row[4].strip() == '0':
-                        continue
-                    
-                    data_caixa_str = row[0].strip()
-                    descricao = row[2].strip()
-                    data_competencia_str = row[3].strip() or data_caixa_str
-                    numero_documento = row[4].strip()
-                    valor_str = row[5].strip()
-                    
-                    data_competencia_obj = datetime.strptime(data_competencia_str, '%d/%m/%Y').date()
-                    data_competencia_iso = data_competencia_obj.strftime('%Y-%m-%d')
-
-                    data_caixa_obj = datetime.strptime(data_caixa_str, '%d/%m/%Y').date()
-                    data_caixa_iso = data_caixa_obj.strftime('%Y-%m-%d')
-
-                    valor = Decimal(valor_str)
-                    tipo = 'Crédito' if valor > 0 else 'Débito'
-                    valor_absoluto = abs(valor)
-
-                    hash_gerado = gerar_hash_lancamento(
-                        conta_id=conta_selecionada.id,
-                        data_caixa=data_caixa_iso,
-                        numero_documento=numero_documento,
-                        valor=valor # Usamos o valor com sinal
-                    )
-
-                    # Salva os dados processados em um dicionário simples
-                    lancamentos_a_revisar.append({
-                        'data_competencia': data_competencia_iso,
-                        'data_caixa':data_caixa_iso,
-                        'descricao': descricao,
-                        'valor': f'{valor_absoluto:.2f}',
-                        'tipo': tipo,
-                        'import_hash': hash_gerado,
-                        'ja_importado': hash_gerado in hashes_existentes, # Verifica se o hash já existe
-                        'numero_documento': numero_documento
-                    })
-
-                except (IndexError, ValueError, InvalidOperation) as e:
-                    messages.warning(request, f"Linha ignorada: {','.join(row)}. Erro: {e}")
-                    continue
+            lancamentos_a_revisar, warnings = services.processar_arquivo_csv(
+                csv_file=csv_file,
+                conta_selecionada=conta_selecionada
+            )
             
             # Armazena os dados processados e o ID da conta na sessão do usuário
             request.session['lancamentos_para_importar'] = lancamentos_a_revisar
