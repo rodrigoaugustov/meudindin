@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Adicionar Novo Lançamento{% endblock %}
+{% block title %}{% if object %}Editar Lançamento{% else %}Adicionar Novo Lançamento{% endif %}{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
     <div class="bg-white shadow-lg rounded-lg p-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">Adicionar Novo Lançamento</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">
+            {% if object %}Editar Lançamento{% else %}Adicionar Novo Lançamento{% endif %}
+        </h1>
         
         {% if form.non_field_errors %}
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -55,9 +57,25 @@
                 </div>
             </div>
 
+            <div class="mt-6 border-t border-gray-200 pt-6">
+                <div class="relative flex items-start">
+                    <div class="flex h-5 items-center">
+                        {{ form.conciliar_automaticamente }}
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="{{ form.conciliar_automaticamente.id_for_label }}" class="font-medium text-gray-700">{{ form.conciliar_automaticamente.label }}</label>
+                        <p class="text-gray-500">{{ form.conciliar_automaticamente.help_text }}</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="mt-8 flex justify-end space-x-4">
-                <a href="{% url 'core:home' %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</a>
-                <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">Salvar Lançamento</button>
+                {% if object.conta_bancaria %}
+                    <a href="{% url 'core:lancamento_list_atual' object.conta_bancaria.pk %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</a>
+                {% else %}
+                    <a href="{% url 'core:home' %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</a>
+                {% endif %}
+                <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">{% if object %}Salvar Alterações{% else %}Salvar Lançamento{% endif %}</button>
             </div>
         </form>
     </div>

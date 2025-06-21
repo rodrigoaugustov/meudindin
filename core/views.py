@@ -29,17 +29,32 @@ from . import services
 
 
 @login_required
-def home(request):
+def home(request, ano=None, mes=None):
     """
     Renderiza o painel principal (dashboard) com os dados
     financeiros do usuário logado.
     """
+
+    if ano is None or mes is None:
+        hoje = date.today()
+        ano = hoje.year
+        mes = hoje.month
+
+    data_selecionada = date(ano, mes, 1)
+    mes_anterior = data_selecionada - relativedelta(months=1)
+    mes_seguinte = data_selecionada + relativedelta(months=1)
+
     # Busca os objetos financeiros pertencentes apenas ao usuário da requisição
     contas_bancarias = ContaBancaria.objects.filter(usuario=request.user)
     cartoes_de_credito = CartaoCredito.objects.filter(usuario=request.user)
     total_contas = sum(conta.saldo_calculado for conta in contas_bancarias)
 
-    chart_labels, chart_data = services.gerar_dados_grafico_saldo(request.user)
+    chart_labels, chart_data = services.gerar_dados_grafico_saldo(
+        request.user,
+        ano=ano,
+        mes=mes
+    )
+
 
     context = {
         'contas_bancarias': contas_bancarias,
@@ -48,6 +63,9 @@ def home(request):
         # Passa os dados do gráfico para o template como JSON seguro
         'chart_labels': mark_safe(json.dumps(chart_labels)),
         'chart_data': mark_safe(json.dumps(chart_data)),
+        'data_selecionada': data_selecionada,
+        'mes_anterior': mes_anterior,
+        'mes_seguinte': mes_seguinte,
     }
     return render(request, 'core/index.html', context)
 
@@ -276,7 +294,6 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
     model = Lancamento
     form_class = LancamentoForm
     template_name = 'core/lancamento_form.html'
-    success_url = reverse_lazy('core:home') # Ou para onde você preferir
 
     def get_queryset(self):
         """Garante que o usuário só pode editar seus próprios lançamentos."""
@@ -288,6 +305,26 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
         kwargs['user'] = self.request.user
         return kwargs
     
+    def get_initial(self):
+        """Define os valores iniciais para campos que não são do modelo."""
+        initial = super().get_initial()
+        # Preenche o checkbox com o estado atual do lançamento
+        if self.object:
+            initial['conciliar_automaticamente'] = self.object.conciliado
+        return initial
+
+    def get_context_data(self, **kwargs):
+        """Adiciona dados dos cartões ao contexto para uso no JavaScript."""
+        context = super().get_context_data(**kwargs)
+        cartoes = CartaoCredito.objects.filter(usuario=self.request.user)
+        cartoes_data = {
+            c.id: {'fechamento': c.dia_fechamento, 'vencimento': c.dia_vencimento}
+            for c in cartoes
+        }
+        # Converte o dicionário para uma string JSON segura para o template
+        context['cartoes_data_json'] = mark_safe(json.dumps(cartoes_data))
+        return context
+
     def form_valid(self, form):
         """
         Sobrescrito para lidar com o checkbox de conciliação e a lógica da fila de edição.
@@ -321,8 +358,10 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
         return redirect(self.get_success_url())
 
     def get_success_url(self):
-        """Redireciona de volta para o extrato da conta do lançamento."""
-        return reverse_lazy('core:lancamento_list_atual', kwargs={'conta_pk': self.object.conta_bancaria.pk})
+        """Redireciona de volta para o extrato da conta do lançamento ou para a home."""
+        if self.object.conta_bancaria:
+            return reverse_lazy('core:lancamento_list_atual', kwargs={'conta_pk': self.object.conta_bancaria.pk})
+        return reverse_lazy('core:home')
 
 
 class LancamentoDeleteView(LoginRequiredMixin, DeleteView):
@@ -334,10 +373,12 @@ class LancamentoDeleteView(LoginRequiredMixin, DeleteView):
         return Lancamento.objects.filter(usuario=self.request.user)
     
     def get_success_url(self):
-        """Redireciona de volta para o extrato da conta após a exclusão."""
+        """Redireciona de volta para o extrato da conta ou home após a exclusão."""
         # Precisamos pegar o pk da conta antes que o objeto seja deletado
-        self.conta_pk = self.object.conta_bancaria.pk
-        return reverse_lazy('core:lancamento_list_atual', kwargs={'conta_pk': self.conta_pk})
+        if self.object.conta_bancaria:
+            self.conta_pk = self.object.conta_bancaria.pk
+            return reverse_lazy('core:lancamento_list_atual', kwargs={'conta_pk': self.conta_pk})
+        return reverse_lazy('core:home')
     
 @require_POST
 @login_required

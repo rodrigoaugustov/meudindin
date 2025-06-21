@@ -36,6 +36,7 @@ app_name = 'core'
 urlpatterns = [
     # Rotas da Aplicação
     path('', views.home, name='home'),
+    path('<int:ano>/<int:mes>/', views.home, name='home_mes'),
 
     # Rotas de Autenticação
     path('signup/', views.SignUpView.as_view(), name='signup'),

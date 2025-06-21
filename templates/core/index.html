@@ -9,14 +9,17 @@
             
             <!-- Coluna da Esquerda (Maior) -->
             <div class="lg:col-span-2 space-y-8">
-                <!-- Card: Evolução do Saldo Diário -->
+                <!-- Card: Evolução do Saldo Mensal -->
                 <section class="bg-white rounded-lg shadow p-6 flex">
-                    <!-- O seletor de data ainda é um placeholder -->
                     <div class="flex flex-col items-center justify-center bg-gray-50 rounded-lg p-4 mr-6">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-                        <p class="text-sm font-bold text-gray-500 my-2">JUN</p>
-                        <p class="text-3xl font-bold text-gray-800">25</p>
-                        <svg class="h-6 w-6 text-gray-400 mt-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        <a href="{% url 'core:home_mes' mes_anterior.year mes_anterior.month %}" title="{{ mes_anterior|date:'F Y' }}">
+                            <svg class="h-6 w-6 text-gray-400 hover:text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        </a>
+                        <p class="text-sm font-bold text-gray-500 my-2">{{ data_selecionada|date:"M"|upper }}</p>
+                        <p class="text-3xl font-bold text-gray-800">{{ data_selecionada|date:"y" }}</p>
+                        <a href="{% url 'core:home_mes' mes_seguinte.year mes_seguinte.month %}" title="{{ mes_seguinte|date:'F Y' }}">
+                            <svg class="h-6 w-6 text-gray-400 hover:text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </a>
                     </div>
                     
                     <div class="w-full">

@@ -79,7 +79,7 @@ class LancamentoForm(forms.ModelForm):
     )
     
     data_caixa = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date'}),
+        widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
         required=False,
         label="Data de Pagamento (Caixa)"
     )
@@ -98,7 +98,7 @@ class LancamentoForm(forms.ModelForm):
             'categoria', 'conta_bancaria', 'cartao_credito'
         ]
         widgets = {
-            'data_competencia': forms.DateInput(attrs={'type': 'date'}),
+            'data_competencia': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'descricao': forms.TextInput(attrs={'placeholder': 'Ex: Compra no supermercado'}),
             'valor': forms.NumberInput(attrs={'placeholder': '150,75'}),
         }
