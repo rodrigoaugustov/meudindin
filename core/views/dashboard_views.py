@@ -33,11 +33,17 @@ def home(request, ano=None, mes=None):
     total_contas = sum(conta.saldo_calculado for conta in contas_bancarias)
 
     chart_labels, chart_data = services.gerar_dados_grafico_saldo(request.user, ano=ano, mes=mes)
+    dados_grafico_despesas = services.gerar_dados_grafico_categorias(request.user, ano=ano, mes=mes)
 
     context = {
-        'contas_bancarias': contas_bancarias, 'cartoes_de_credito': cartoes_de_credito,
-        'total_contas': total_contas, 'chart_labels': mark_safe(json.dumps(chart_labels)),
-        'chart_data': mark_safe(json.dumps(chart_data)), 'data_selecionada': data_selecionada,
+        'contas_bancarias': contas_bancarias,
+        'cartoes_de_credito': cartoes_de_credito,
+        'total_contas': total_contas,
+        'chart_labels': mark_safe(json.dumps(chart_labels)),
+        'chart_data': mark_safe(json.dumps(chart_data)),
+        'dados_grafico_despesas_json': mark_safe(json.dumps(dados_grafico_despesas)),
+        'data_selecionada': data_selecionada,
         'mes_anterior': mes_anterior, 'mes_seguinte': mes_seguinte,
     }
+    
     return render(request, 'core/index.html', context)

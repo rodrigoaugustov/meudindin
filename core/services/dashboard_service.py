@@ -73,3 +73,54 @@ def gerar_dados_grafico_saldo(usuario, ano, mes):
         chart_data.append(float(saldo_acumulado))
 
     return chart_labels, chart_data
+
+
+def gerar_dados_grafico_categorias(usuario, ano, mes):
+    """
+    Calcula os dados para o gráfico de rosca de despesas por categoria.
+    Limita a 5 categorias principais e agrupa o resto em 'Outros'.
+    """
+    data_inicio_mes = date(ano, mes, 1)
+    data_fim_mes = data_inicio_mes + relativedelta(months=1) - relativedelta(days=1)
+
+    # Busca todas as despesas do período, agrupadas por categoria
+    despesas_por_categoria = Lancamento.objects.filter(
+        usuario=usuario,
+        tipo='D', # Apenas Débitos (despesas)
+        data_competencia__range=(data_inicio_mes, data_fim_mes)
+    ).values(
+        'categoria__nome' # Agrupa pelo nome da categoria
+    ).annotate(
+        total=Sum('valor') # Soma os valores para cada categoria
+    ).order_by(
+        '-total' # Ordena do maior para o menor gasto
+    )
+
+    if not despesas_por_categoria:
+        return {}
+
+    # Prepara os dados para a visão completa (todas as categorias)
+    labels_completos = [item['categoria__nome'] or 'Sem Categoria' for item in despesas_por_categoria]
+    data_completos = [float(item['total']) for item in despesas_por_categoria]
+
+    # Lógica para "Top 5 + Outros"
+    TOP_N = 5
+    labels_condensados = []
+    data_condensados = []
+
+    top_items = despesas_por_categoria[:TOP_N]
+    outros_items = despesas_por_categoria[TOP_N:]
+
+    for item in top_items:
+        labels_condensados.append(item['categoria__nome'] or 'Sem Categoria')
+        data_condensados.append(float(item['total']))
+
+    if outros_items:
+        total_outros = sum(item['total'] for item in outros_items)
+        labels_condensados.append('Outros')
+        data_condensados.append(float(total_outros))
+
+    return {
+        'condensado': {'labels': labels_condensados, 'data': data_condensados},
+        'completo': {'labels': labels_completos, 'data': data_completos}
+    }
