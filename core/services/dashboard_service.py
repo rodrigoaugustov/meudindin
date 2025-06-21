@@ -19,7 +19,7 @@ def gerar_dados_grafico_saldo(usuario, ano, mes, contas_ids=None):
     if not contas_a_calcular.exists():
         return [], []
 
-    # 2. Define o período do gráfico.
+    # 2. Define o período do gráfico para o mês selecionado.
     data_inicio_mes = date(ano, mes, 1)
     data_fim_mes = data_inicio_mes + relativedelta(months=1) - relativedelta(days=1)
 
@@ -57,6 +57,7 @@ def gerar_dados_grafico_saldo(usuario, ano, mes, contas_ids=None):
     # 6. Popula os dados do gráfico dia a dia, começando com o saldo inicial calculado.
     chart_labels = []
     chart_data = []
+    
     for i in range(1, data_fim_mes.day + 1):
         dia_atual = date(ano, mes, i)
         saldo_acumulado += mudancas_diarias.get(dia_atual, Decimal('0.0'))

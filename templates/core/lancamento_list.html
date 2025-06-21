@@ -81,7 +81,7 @@
             <div class="bg-white shadow overflow-hidden sm:rounded-lg">
                 <ul class="divide-y divide-gray-200">
                     {% for lancamento in lancamentos %}
-                    <li class="px-4 py-3 sm:px-6 flex items-center justify-between hover:bg-gray-50 group">
+                    <li class="px-4 py-3 sm:px-6 flex items-center justify-between hover:bg-gray-50 group {% if lancamento.data_caixa > hoje %}bg-gray-50 text-gray-500{% endif %}">
                         <div class="flex items-center space-x-4 flex-1">
                             <div class="relative w-5 h-5 flex items-center justify-center">
                                 <span class="h-3 w-3 rounded-full {% if lancamento.conciliado %}bg-purple-500{% else %}bg-green-500{% endif %} group-hover:opacity-0 transition-opacity"></span>
@@ -89,8 +89,8 @@
                             </div>
                             <span class="text-sm text-gray-500 w-20">{{ lancamento.data_caixa|date:"d/m/Y" }}</span>
                             <div class="flex-1">
-                                <p class="text-md font-medium text-gray-800">{{ lancamento.descricao }}</p>
-                                <p class="text-sm text-gray-500">{{ lancamento.categoria.nome|default:"Sem Categoria" }}</p>
+                                <p class="text-md font-medium {% if lancamento.data_caixa <= hoje %}text-gray-800{% endif %}">{{ lancamento.descricao }}</p>
+                                <p class="text-sm {% if lancamento.data_caixa <= hoje %}text-gray-500{% else %}text-gray-400{% endif %}">{{ lancamento.categoria.nome|default:"Sem Categoria" }}</p>
                             </div>
                         </div>
                         <div class="flex items-center space-x-8">

@@ -21,8 +21,8 @@ def home(request, ano=None, mes=None):
     financeiros do usuário logado.
     """
 
+    hoje = date.today()
     if ano is None or mes is None:
-        hoje = date.today()
         ano = hoje.year
         mes = hoje.month
 
@@ -40,6 +40,12 @@ def home(request, ano=None, mes=None):
     dados_grafico_despesas = services.gerar_dados_grafico_categorias(request.user, ano=ano, mes=mes, contas_ids=contas_selecionadas_ids)
     dados_fluxo_caixa_completo = services.gerar_dados_fluxo_caixa(request.user, ano, contas_ids=contas_selecionadas_ids)
 
+    # Encontra o índice de "hoje" nos labels do gráfico para dividir a linha em real vs. projetado
+    today_str = hoje.strftime('%d/%m')
+    chart_today_index = -1
+    if today_str in chart_labels:
+        chart_today_index = chart_labels.index(today_str)
+
     context = {
         'contas_bancarias': contas_bancarias,
         'contas_selecionadas_ids': contas_selecionadas_ids,
@@ -48,6 +54,7 @@ def home(request, ano=None, mes=None):
         'chart_labels': mark_safe(json.dumps(chart_labels)),
         'chart_data': mark_safe(json.dumps(chart_data)),
         'dados_grafico_despesas_json': mark_safe(json.dumps(dados_grafico_despesas)),
+        'chart_today_index': chart_today_index,
         'dados_fluxo_caixa': dados_fluxo_caixa_completo['dados_tabela'],
         'data_selecionada': data_selecionada,
         'mes_anterior': mes_anterior, 'mes_seguinte': mes_seguinte,
@@ -58,6 +65,7 @@ def home(request, ano=None, mes=None):
 @require_POST
 @login_required
 def dashboard_data_view(request):
+    hoje = date.today()
     try:
         data = json.loads(request.body)
         ano = int(data.get('ano'))
@@ -73,6 +81,11 @@ def dashboard_data_view(request):
     dados_grafico_despesas = services.gerar_dados_grafico_categorias(request.user, ano=ano, mes=mes, contas_ids=contas_ids)
     dados_fluxo_caixa_completo = services.gerar_dados_fluxo_caixa(request.user, ano, contas_ids=contas_ids)
 
+    today_str = hoje.strftime('%d/%m')
+    chart_today_index = -1
+    if today_str in chart_labels:
+        chart_today_index = chart_labels.index(today_str)
+
     dados_fluxo_caixa_formatado = [
         {'mes': item['mes'].strftime('%b').capitalize() + '.', 'total_creditos': brl(item['total_creditos']), 'total_debitos': brl(item['total_debitos'])}
         for item in dados_fluxo_caixa_completo['dados_tabela']
@@ -81,7 +94,7 @@ def dashboard_data_view(request):
     response_data = {
         'status': 'success',
         'total_contas': brl(total_contas),
-        'saldo_chart': {'labels': chart_labels, 'points': chart_data},
+        'saldo_chart': {'labels': chart_labels, 'points': chart_data, 'todayIndex': chart_today_index},
         'despesas_chart': dados_grafico_despesas,
         'fluxo_caixa_tabela': dados_fluxo_caixa_formatado,
     }

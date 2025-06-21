@@ -121,7 +121,8 @@
     <script id="chart-data" type="application/json">
         {
             "labels": {{ chart_labels|safe }},
-            "points": {{ chart_data|safe }}
+            "points": {{ chart_data|safe }},
+            "todayIndex": {{ chart_today_index }}
         }
     </script>
 

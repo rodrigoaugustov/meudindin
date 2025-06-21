@@ -1,5 +1,6 @@
 # core/services/account_service.py
 from decimal import Decimal
+from datetime import date
 from django.db.models import Sum, Q
 from ..models import Lancamento, ContaBancaria
 
@@ -7,13 +8,17 @@ def recalcular_saldo_conta(conta: ContaBancaria):
     """
     Recalcula e atualiza o saldo de uma conta bancária específica.
     Esta é a lógica central que será usada por signals e chamadas manuais.
+    O saldo calculado reflete o saldo REAL, considerando apenas lançamentos
+    com data de caixa até o dia de hoje.
     """
     if not isinstance(conta, ContaBancaria) or not conta.pk:
         return
 
-    # Agrega todos os lançamentos da conta
+    # Agrega os lançamentos que já ocorreram desde a data do saldo inicial
     agregado = Lancamento.objects.filter(
-        conta_bancaria=conta
+        conta_bancaria=conta,
+        data_caixa__gte=conta.data_saldo_inicial,
+        data_caixa__lte=date.today()
     ).aggregate(
         total_creditos=Sum('valor', filter=Q(tipo='C')),
         total_debitos=Sum('valor', filter=Q(tipo='D'))

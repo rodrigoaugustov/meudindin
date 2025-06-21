@@ -58,10 +58,10 @@ class LancamentoListView(LoginRequiredMixin, ListView):
         ano = self.kwargs.get('ano')
         mes = self.kwargs.get('mes')
 
+        self.hoje = date.today()
         if ano is None or mes is None:
-            hoje = date.today()
-            ano = hoje.year
-            mes = hoje.month
+            ano = self.hoje.year
+            mes = self.hoje.month
 
         self.conta = get_object_or_404(ContaBancaria, pk=pk, usuario=self.request.user)
         
@@ -104,6 +104,7 @@ class LancamentoListView(LoginRequiredMixin, ListView):
         context['mes_anterior'] = data_selecionada - relativedelta(months=1)
         context['mes_seguinte'] = data_selecionada + relativedelta(months=1)
         context['saldo_inicial_periodo'] = saldo_anterior
+        context['hoje'] = self.hoje
         
         return context
     
