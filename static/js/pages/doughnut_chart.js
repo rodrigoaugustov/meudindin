@@ -1,24 +1,34 @@
 // static/js/pages/doughnut_chart.js
-document.addEventListener('DOMContentLoaded', function() {
-    const dataScript = document.getElementById('despesas-chart-data');
-    if (!dataScript) return;
+let doughnutChartInstance = null;
+let isExpanded = false;
+let fullChartData = {}; // Armazena os dados completos para a funcionalidade de expandir
 
-    const chartData = JSON.parse(dataScript.textContent);
-    if (!chartData || !chartData.condensado || !chartData.condensado.labels.length) {
-        // Se não há dados, não faz nada
-        return;
-    }
-
-    const ctx = document.getElementById('despesasCategoriaChart').getContext('2d');
-    let doughnutChartInstance = null;
-    let isExpanded = false;
-
+window.updateDespesasChart = function(chartData) {
+    fullChartData = chartData; // Atualiza os dados globais
     // Paleta de cores para o gráfico
     const defaultColors = [
         '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
         '#EC4899', '#6366F1', '#F97316', '#06B6D4', '#D946EF'
     ];
     const othersColor = '#6B7280'; // Cinza para a categoria "Outros"
+
+    const chartContainer = document.getElementById('despesas-chart-container');
+    const noDataEl = document.getElementById('no-despesas-data');
+
+    if (!chartContainer || !noDataEl) return;
+
+    if (doughnutChartInstance) {
+        doughnutChartInstance.destroy();
+    }
+
+    if (!chartData || !chartData.condensado || !chartData.condensado.labels.length) {
+        chartContainer.classList.add('hidden');
+        noDataEl.classList.remove('hidden');
+        return;
+    }
+
+    chartContainer.classList.remove('hidden');
+    noDataEl.classList.add('hidden');
 
     function getChartColors(labels) {
         return labels.map((label, index) => {
@@ -27,11 +37,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function updateChart(data, labels) {
+    function renderDoughnut(data, labels) {
         if (doughnutChartInstance) {
             doughnutChartInstance.destroy();
         }
 
+        const ctx = document.getElementById('despesasCategoriaChart').getContext('2d');
         doughnutChartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -69,12 +80,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 onClick: (e) => {
                     const points = doughnutChartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
                     if (isExpanded) {
-                        updateChart(chartData.condensado.data, chartData.condensado.labels);
+                        renderDoughnut(fullChartData.condensado.data, fullChartData.condensado.labels);
                         isExpanded = false;
                     } else if (points.length) {
                         const clickedLabel = doughnutChartInstance.data.labels[points[0].index];
                         if (clickedLabel === 'Outros') {
-                            updateChart(chartData.completo.data, chartData.completo.labels);
+                            renderDoughnut(fullChartData.completo.data, fullChartData.completo.labels);
                             isExpanded = true;
                         }
                     }
@@ -82,7 +93,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    isExpanded = false;
+    renderDoughnut(chartData.condensado.data, chartData.condensado.labels);
+}
 
-    // Renderiza o gráfico inicial com os dados condensados
-    updateChart(chartData.condensado.data, chartData.condensado.labels);
+document.addEventListener('DOMContentLoaded', function() {
+    const dataScript = document.getElementById('despesas-chart-data');
+    if (!dataScript) return;
+    const initialChartData = JSON.parse(dataScript.textContent);
+    window.updateDespesasChart(initialChartData);
 });

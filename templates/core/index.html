@@ -5,7 +5,7 @@
 {% block content %}
 <main class="py-10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8" data-ano="{{ data_selecionada.year }}" data-mes="{{ data_selecionada.month }}">
             
             <!-- Coluna da Esquerda (Maior) -->
             <div class="lg:col-span-2 space-y-8">
@@ -34,14 +34,11 @@
 
                 <!-- Card: Despesas por Categorias (Ainda estático) -->
                 <section class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Despesas por Categoria</h2>
-                    {% if dados_grafico_despesas_json != '{}' %}
-                        <div class="h-64 relative">
-                            <canvas id="despesasCategoriaChart"></canvas>
-                        </div>
-                    {% else %}
-                        <p class="text-center text-gray-500 mt-16">Não há despesas neste período para exibir.</p>
-                    {% endif %}
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Despesas por Categoria</h2>                    
+                    <div id="despesas-chart-container" class="h-64 relative">
+                        <canvas id="despesasCategoriaChart"></canvas>
+                    </div>
+                    <p id="no-despesas-data" class="text-center text-gray-500 mt-16 hidden">Não há despesas neste período para exibir.</p>
                 </section>
             </div>
 
@@ -50,20 +47,23 @@
                 <!-- Card: Resumo Financeiro (Com os dados dinâmicos de volta) -->
                 <section class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-lg font-semibold text-gray-800">Resumo Financeiro</h2>
-                    <div class="mt-4 space-y-2">
+                    <div class="mt-4 space-y-2" id="contas-filter-list">
                         <h3 class="font-semibold text-gray-700">Contas</h3>
                         {% for conta in contas_bancarias %}
                         <div class="flex justify-between items-center text-sm">
-                            <p><span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-2"></span>{{ conta.nome_banco }}</p>
+                            <label for="conta-{{ conta.pk }}" class="flex items-center cursor-pointer">
+                                <input type="checkbox" id="conta-{{ conta.pk }}" data-id="{{ conta.pk }}" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" {% if conta.pk in contas_selecionadas_ids %}checked{% endif %}>
+                                <span>{{ conta.nome_banco }}</span>
+                            </label>
                             <p class="font-medium">R$ {{ conta.saldo_calculado|brl }}</p>
                         </div>
                         {% empty %}
                             <p class="text-sm text-gray-500">Nenhuma conta cadastrada.</p>
                         {% endfor %}
                         <hr class="my-2">
-                        <div class="flex justify-between items-center font-bold text-gray-800">
+                        <div class="flex justify-between items-center font-bold text-gray-800" id="total-contas-container">
                             <p>Total em Contas</p>
-                            <p>R$ {{ total_contas|brl }}</p>
+                            <p id="total-contas-valor">R$ {{ total_contas|brl }}</p>
                         </div>
                         
                         <h3 class="font-semibold text-gray-700 mt-4">Cartões de Crédito</h3>
@@ -75,6 +75,38 @@
                         {% empty %}
                             <p class="text-sm text-gray-500">Nenhum cartão de crédito cadastrado.</p>
                         {% endfor %}
+                    </div>
+                </section>
+
+                <!-- Card: Fluxo de Caixa Anual -->
+                <section class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-semibold text-gray-800">Fluxo de Caixa ({{ data_selecionada.year }})</h2>
+                        <a href="{% url 'core:relatorio_fluxo_caixa_atual' %}" class="text-sm text-blue-600 hover:underline">Ver completo</a>
+                    </div>
+                    <div class="mt-4">
+                        <table class="w-full text-sm">
+                            <thead class="border-b-2 border-gray-200">
+                                <tr class="text-left text-gray-500">
+                                    <th class="py-1 font-medium">Mês</th>
+                                    <th class="py-1 font-medium text-right">Entradas</th>
+                                    <th class="py-1 font-medium text-right">Saídas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fluxo-caixa-body">
+                                {% for item in dados_fluxo_caixa %}
+                                <tr class="border-b border-gray-100">
+                                    <td class="py-2 font-medium text-gray-700">{{ item.mes|date:"b"|capfirst }}.</td>
+                                    <td class="py-2 text-green-600 text-right">{{ item.total_creditos|brl }}</td>
+                                    <td class="py-2 text-red-600 text-right">{{ item.total_debitos|brl }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="py-4 text-center text-gray-500">Sem dados para este ano.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </section>
             </div>
@@ -99,4 +131,5 @@
     </script>
     <script src="{% static 'js/pages/dashboard_chart.js' %}" defer></script>
     <script src="{% static 'js/pages/doughnut_chart.js' %}" defer></script>
+    <script src="{% static 'js/pages/dashboard_filters.js' %}" defer></script>
 {% endblock scripts %}

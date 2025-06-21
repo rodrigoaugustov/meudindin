@@ -36,12 +36,14 @@ from .views import (
     reordenar_regras_view,
     criar_regra_lancamento_view,
 )
+from .views import fluxo_caixa_view
 
 app_name = 'core'
 
 urlpatterns = [
     # Rotas da Aplicação
     path('', views.home, name='home'),
+    path('dashboard-data/', views.dashboard_data_view, name='dashboard_data'),
     path('<int:ano>/<int:mes>/', views.home, name='home_mes'),
 
     # Rotas de Autenticação
@@ -97,5 +99,9 @@ urlpatterns += [
     # Rota Extratos
     path('conta/<int:conta_pk>/extrato/', LancamentoListView.as_view(), name='lancamento_list_atual'),
     path('conta/<int:conta_pk>/extrato/<int:ano>/<int:mes>/', LancamentoListView.as_view(), name='lancamento_list'),
+
+    # Rotas para Relatórios
+    path('relatorios/fluxo-caixa/', fluxo_caixa_view, name='relatorio_fluxo_caixa_atual'),
+    path('relatorios/fluxo-caixa/<int:ano>/', fluxo_caixa_view, name='relatorio_fluxo_caixa'),
 
 ]
