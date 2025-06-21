@@ -27,7 +27,14 @@ from .views import (
     excluir_lancamentos_em_massa,
     iniciar_fila_conciliacao_view,
     iniciar_fila_edicao_view,
-    importar_unificado_view
+    importar_unificado_view,
+    RegraCategoriaListView,
+    RegraCategoriaCreateView,
+    RegraCategoriaUpdateView,
+    RegraCategoriaDeleteView,
+    regra_aplicar_retroativo_view,
+    reordenar_regras_view,
+    criar_regra_lancamento_view,
 )
 
 app_name = 'core'
@@ -65,6 +72,14 @@ urlpatterns += [
     path('categorias/adicionar/', CategoriaCreateView.as_view(), name='categoria_create'),
     path('categorias/<int:pk>/editar/', CategoriaUpdateView.as_view(), name='categoria_update'),
     path('categorias/<int:pk>/excluir/', CategoriaDeleteView.as_view(), name='categoria_delete'),
+    # Rotas para Regras de Categoria
+    path('regras/', RegraCategoriaListView.as_view(), name='regra_list'),
+    path('regras/adicionar/', RegraCategoriaCreateView.as_view(), name='regra_create'),
+    path('regras/<int:pk>/editar/', RegraCategoriaUpdateView.as_view(), name='regra_update'),
+    path('regras/<int:pk>/excluir/', RegraCategoriaDeleteView.as_view(), name='regra_delete'),
+    path('regras/<int:pk>/aplicar-retroativo/', regra_aplicar_retroativo_view, name='regra_aplicar_retroativo'),
+    path('regras/reordenar/', reordenar_regras_view, name='regras_reordenar'),
+    path('regras/criar-via-lancamento/', criar_regra_lancamento_view, name='regra_criar_modal'),
     # Rota para CRUD de lançamento
     path('lancamentos/adicionar/', LancamentoCreateView.as_view(), name='lancamento_create'),
     path('lancamentos/<int:pk>/editar/', LancamentoUpdateView.as_view(), name='lancamento_update'),

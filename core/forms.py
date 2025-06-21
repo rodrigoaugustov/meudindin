@@ -4,7 +4,7 @@ import os
 from django import forms
 from django.db.models import Q
 
-from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
+from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito, RegraCategoria
 
 class TailwindFormMixin:
     """Mixin para aplicar classes CSS do Tailwind a todos os campos de um formulário."""
@@ -15,6 +15,30 @@ class TailwindFormMixin:
             # Aplica a classe apenas se o widget não tiver uma classe definida
             if 'class' not in field.widget.attrs:
                 field.widget.attrs['class'] = tailwind_classes
+
+
+class RegraCategoriaForm(TailwindFormMixin, forms.ModelForm):
+    class Meta:
+        model = RegraCategoria
+        fields = ['texto_regra', 'categoria']
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user:
+            self.fields['categoria'].queryset = Categoria.objects.filter(
+                Q(usuario=user) | Q(usuario__isnull=True)
+            ).order_by('nome')
+
+
+class RegraCategoriaModalForm(RegraCategoriaForm):
+    """Formulário específico para o modal, com IDs diferentes para evitar conflitos."""
+    aplicar_retroativo = forms.BooleanField(required=False, initial=True, label="Aplicar esta regra a lançamentos existentes?")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Adiciona IDs específicos para o modal
+        self.fields['texto_regra'].widget.attrs['id'] = 'id_texto_regra_modal'
+        self.fields['categoria'].widget.attrs['id'] = 'id_categoria_modal'
 
 
 class ContaBancariaForm(TailwindFormMixin, forms.ModelForm):
@@ -75,7 +99,8 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
     # Usando o campo customizado para as categorias
     categoria = CategoriaModelChoiceField(
         queryset=Categoria.objects.none(), # O queryset será definido no __init__
-        required=False
+        required=True, # Categoria agora é obrigatória
+        empty_label=None # Remove a opção "---------"
     )
     
     data_caixa = forms.DateField(

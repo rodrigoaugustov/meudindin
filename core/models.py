@@ -3,8 +3,26 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db.models import Sum, Q, Window, F, Case, When, DecimalField
+from django.db.models import Sum, Q, Window, F, Case, When, DecimalField, Max
 from decimal import Decimal
+
+def get_default_other_category():
+    """
+    Obtém ou cria a categoria 'Outros' do sistema e retorna o objeto.
+    Usado para on_delete=models.SET().
+    """
+    # Usamos get_or_create para garantir que a categoria exista e evitar race conditions.
+    # Como é uma categoria de sistema, o usuário é None.
+    categoria, created = Categoria.objects.get_or_create(
+        nome='Outros',
+        usuario__isnull=True,
+        defaults={'usuario': None}
+    )
+    return categoria
+
+def get_default_other_category_pk():
+    """Retorna a PK da categoria 'Outros' para o 'default' do campo."""
+    return get_default_other_category().pk
 
 # --- Modelos Principais de Cadastros ---
 
@@ -80,6 +98,43 @@ class Categoria(models.Model):
         if self.usuario:
             return f"{self.nome} ({self.usuario.username})"
         return f"{self.nome} [Sistema]"
+
+
+class RegraCategoria(models.Model):
+    """
+    Regra para categorizar automaticamente um lançamento baseado em texto na descrição.
+    """
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='regras_categoria')
+    texto_regra = models.CharField(
+        max_length=200,
+        help_text="Texto a ser procurado na descrição do lançamento (não diferencia maiúsculas/minúsculas)."
+    )
+    categoria = models.ForeignKey(
+        Categoria,
+        on_delete=models.CASCADE,
+        help_text="Categoria a ser aplicada se o texto for encontrado."
+    )
+    ordem = models.PositiveIntegerField(
+        default=0,
+        blank=False,
+        null=False,
+        help_text="Ordem de prioridade da regra (menor número = maior prioridade)."
+    )
+
+    class Meta:
+        verbose_name = "Regra de Categoria"
+        verbose_name_plural = "Regras de Categoria"
+        unique_together = [['usuario', 'texto_regra']]
+        ordering = ['ordem']
+
+    def __str__(self):
+        return f"Se descrição contém '{self.texto_regra}', categorizar como '{self.categoria.nome}'"
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            max_ordem = RegraCategoria.objects.filter(usuario=self.usuario).aggregate(Max('ordem'))['ordem__max']
+            self.ordem = (max_ordem or 0) + 1
+        super().save(*args, **kwargs)
     
 
 # Métodos em um QuerySet são sempre encadeáveis.
@@ -136,7 +191,12 @@ class Lancamento(models.Model):
     )
 
     # Relacionamentos (um lançamento pode pertencer a uma categoria, conta ou cartão)
-    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
+    categoria = models.ForeignKey(
+        Categoria,
+        on_delete=models.PROTECT,  # Protege contra a exclusão de categorias em uso
+        default=get_default_other_category_pk,
+        help_text="Categoria do lançamento."
+    )
     conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.CASCADE, null=True, blank=True, related_name='lancamentos')
     cartao_credito = models.ForeignKey(CartaoCredito, on_delete=models.CASCADE, null=True, blank=True)
     objects = LancamentoQuerySet.as_manager()

@@ -54,6 +54,7 @@
                                 <a href="{% url 'core:conta_list' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Contas</a>
                                 <a href="{% url 'core:cartao_list' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Cartões</a>
                                 <a href="{% url 'core:categoria_list' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Categorias</a>
+                                <a href="{% url 'core:regra_list' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Regras de Categoria</a>
                             </div>
                         </div>
                         
@@ -111,6 +112,7 @@
     <!-- Bloco para scripts JavaScript no final da página -->
     {% block scripts %}
     {% endblock scripts %}
+    <script src="{% static 'js/components/toast.js' %}" defer></script>
     <script src="{% static 'js/components/dropdown.js' %}" defer></script>
 </body>
 </html>

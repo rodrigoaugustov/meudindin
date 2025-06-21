@@ -10,3 +10,4 @@ from .cartao_views import *
 from .categoria_views import *
 from .lancamento_views import *
 from .import_views import *
+from .regra_views import *

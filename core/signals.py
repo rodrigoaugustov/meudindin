@@ -1,9 +1,22 @@
 from decimal import Decimal
 from django.db.models import Sum, Q
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
-from .models import Lancamento, ContaBancaria
-from .services import recalcular_saldo_conta
+from .models import Lancamento, ContaBancaria, get_default_other_category_pk
+from .services import recalcular_saldo_conta, aplicar_regras_para_lancamento
+
+@receiver(pre_save, sender=Lancamento)
+def categorizar_lancamento_automaticamente(sender, instance, **kwargs):
+    """
+    Antes de salvar um lançamento, tenta aplicar as regras de categoria.
+    Isso acontece para novos lançamentos ou se a categoria for a padrão "Outros",
+    permitindo que o usuário "reset" a categoria para re-aplicar as regras.
+    """
+    # O `instance.pk is None` identifica um novo objeto.
+    is_new = instance.pk is None
+    is_default_category = instance.categoria_id == get_default_other_category_pk()
+    if is_new or is_default_category:
+        aplicar_regras_para_lancamento(instance)
 
 @receiver([post_save, post_delete], sender=Lancamento)
 def atualizar_saldo_conta(sender, instance, **kwargs):

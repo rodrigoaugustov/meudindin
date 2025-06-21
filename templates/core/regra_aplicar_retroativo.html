@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Aplicar Regra Retroativamente?{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto py-20 px-4 sm:px-6 lg:px-8">
+    <div class="bg-white shadow-lg rounded-lg p-8 text-center">
+        <h1 class="text-2xl font-bold text-gray-900 mb-4">Regra Criada com Sucesso!</h1>
+        <p class="text-gray-600 mb-6">
+            A regra <strong class="text-blue-500">"{{ regra }}"</strong> foi criada.
+            <br><br>
+            Deseja aplicar esta regra a todos os seus lançamentos existentes? 
+            <span class="text-sm block mt-1">Isso pode alterar categorias que você definiu manualmente.</span>
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="flex justify-center space-x-4">
+                <a href="{% url 'core:regra_list' %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Não, obrigado</a>
+                <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">Sim, aplicar retroativamente</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

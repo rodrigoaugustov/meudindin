@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from ..models import Lancamento, ContaBancaria, CartaoCredito
-from ..forms import LancamentoForm, ConciliacaoForm
+from ..forms import LancamentoForm, ConciliacaoForm, RegraCategoriaModalForm
 
 
 class LancamentoCreateView(LoginRequiredMixin, CreateView):
@@ -38,6 +38,7 @@ class LancamentoCreateView(LoginRequiredMixin, CreateView):
             for c in cartoes
         }
         context['cartoes_data_json'] = mark_safe(json.dumps(cartoes_data))
+        context['form_regra_modal'] = RegraCategoriaModalForm(user=self.request.user)
         return context
 
     def form_valid(self, form):
@@ -133,6 +134,7 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
             for c in cartoes
         }
         context['cartoes_data_json'] = mark_safe(json.dumps(cartoes_data))
+        context['form_regra_modal'] = RegraCategoriaModalForm(user=self.request.user, initial={'categoria': self.object.categoria})
         return context
 
     def form_valid(self, form):

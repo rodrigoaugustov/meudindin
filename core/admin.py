@@ -6,7 +6,8 @@ from .models import (
     CartaoCredito,
     Categoria,
     Lancamento,
-    Orcamento
+    Orcamento,
+    RegraCategoria
 )
 
 @admin.register(ContaBancaria)
@@ -70,5 +71,14 @@ class OrcamentoAdmin(admin.ModelAdmin):
     list_filter = ('usuario', 'ano_mes', 'categoria')
     search_fields = ('categoria__nome', 'usuario__username')
     date_hierarchy = 'ano_mes'
+    list_per_page = 20
+    list_select_related = ('usuario', 'categoria')
+
+@admin.register(RegraCategoria)
+class RegraCategoriaAdmin(admin.ModelAdmin):
+    """Admin para o modelo RegraCategoria."""
+    list_display = ('texto_regra', 'categoria', 'usuario', 'ordem')
+    list_filter = ('usuario', 'categoria')
+    search_fields = ('texto_regra', 'usuario__username', 'categoria__nome')
     list_per_page = 20
     list_select_related = ('usuario', 'categoria')
