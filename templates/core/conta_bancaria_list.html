@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Minhas Contas Bancárias{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Minhas Contas Bancárias</h1>
+        <a href="{% url 'core:conta_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Adicionar Nova Conta
+        </a>
+    </div>
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <ul class="divide-y divide-gray-200">
+            {% for conta in contas %}
+            <li>
+                <div class="px-4 py-4 sm:px-6 flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-lg font-medium text-blue-600 truncate">{{ conta.nome_banco }}</p>
+                        <p class="text-sm text-gray-500">
+                            Ag: {{ conta.agencia|default:"N/A" }} | CC: {{ conta.numero_conta }}
+                        </p>
+                    </div>
+                        <div class="flex-shrink-0 ml-4 flex items-center space-x-4">
+                        <span class="text-lg font-semibold text-gray-800">R$ {{ conta.saldo_calculado|floatformat:2 }}</span>
+                        <!-- NOVO BOTÃO -->
+                        <a href="{% url 'core:lancamento_list_atual' conta.pk %}" class="text-green-600 hover:text-green-900 text-sm font-medium">Extrato</a>
+                        <a href="{% url 'core:conta_update' conta.pk %}" class="text-indigo-600 hover:text-indigo-900 text-sm">Editar</a>
+                        <a href="{% url 'core:conta_delete' conta.pk %}" class="text-red-600 hover:text-red-900 text-sm">Excluir</a>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <li class="px-4 py-5 sm:px-6">
+                <p class="text-center text-gray-500">Você ainda não cadastrou nenhuma conta bancária.</p>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

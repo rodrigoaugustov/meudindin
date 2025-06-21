@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load formatacao %}
+
+{% block title %}Conciliar Lançamento{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div class="bg-white shadow-lg rounded-lg p-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Conciliar Lançamento</h1>
+        <p class="text-gray-600 mb-6">Confirme ou ajuste a data e o valor efetivos para o lançamento <strong class="text-blue-600">"{{ lancamento.descricao }}"</strong>.</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-6">
+                {{ form.as_p }}
+            </div>
+            <div class="mt-8 flex justify-end space-x-4">
+                <a href="{% url 'core:lancamento_list_atual' lancamento.conta_bancaria.pk %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">
+                    Cancelar
+                </a>
+                <button type="submit" class="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700">
+                    Conciliar e Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

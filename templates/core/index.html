@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load formatacao %}
+
+{% block content %}
+<main class="py-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Coluna da Esquerda (Maior) -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Card: Evolução do Saldo Mensal -->
+                <section class="bg-white rounded-lg shadow p-6 flex">
+                    <div class="flex flex-col items-center justify-center bg-gray-50 rounded-lg p-4 mr-6">
+                        <a href="{% url 'core:home_mes' mes_anterior.year mes_anterior.month %}" title="{{ mes_anterior|date:'F Y' }}">
+                            <svg class="h-6 w-6 text-gray-400 hover:text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        </a>
+                        <p class="text-sm font-bold text-gray-500 my-2">{{ data_selecionada|date:"M"|upper }}</p>
+                        <p class="text-3xl font-bold text-gray-800">{{ data_selecionada|date:"y" }}</p>
+                        <a href="{% url 'core:home_mes' mes_seguinte.year mes_seguinte.month %}" title="{{ mes_seguinte|date:'F Y' }}">
+                            <svg class="h-6 w-6 text-gray-400 hover:text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </a>
+                    </div>
+                    
+                    <div class="w-full">
+                        <h2 class="text-lg font-semibold text-gray-800">Evolução do Saldo Diário (Últimos 30 dias)</h2>
+                        
+                        <!-- Local do Gráfico -->
+                        <div class="mt-4 h-64" id="chart-container">
+                            <canvas id="saldoDiarioChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Card: Despesas por Categorias (Ainda estático) -->
+                <section class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-800">Despesas por Categorias</h2>
+                    <div class="mt-4 h-64 bg-gray-100 rounded-md flex items-center justify-center">
+                        <p class="text-gray-400 text-sm">Placeholder para Gráfico de Pizza</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Coluna da Direita (Menor) -->
+            <div class="lg:col-span-1 space-y-8">
+                <!-- Card: Resumo Financeiro (Com os dados dinâmicos de volta) -->
+                <section class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-800">Resumo Financeiro</h2>
+                    <div class="mt-4 space-y-2">
+                        <h3 class="font-semibold text-gray-700">Contas</h3>
+                        {% for conta in contas_bancarias %}
+                        <div class="flex justify-between items-center text-sm">
+                            <p><span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-2"></span>{{ conta.nome_banco }}</p>
+                            <p class="font-medium">R$ {{ conta.saldo_calculado|brl }}</p>
+                        </div>
+                        {% empty %}
+                            <p class="text-sm text-gray-500">Nenhuma conta cadastrada.</p>
+                        {% endfor %}
+                        <hr class="my-2">
+                        <div class="flex justify-between items-center font-bold text-gray-800">
+                            <p>Total em Contas</p>
+                            <p>R$ {{ total_contas|brl }}</p>
+                        </div>
+                        
+                        <h3 class="font-semibold text-gray-700 mt-4">Cartões de Crédito</h3>
+                        {% for cartao in cartoes_de_credito %}
+                        <div class="flex justify-between items-center text-sm">
+                            <p><span class="inline-block h-3 w-3 rounded-full bg-orange-500 mr-2"></span>{{ cartao.nome_cartao }}</p>
+                            <p class="font-medium">Limite: R$ {{ cartao.limite|brl }}</p>
+                        </div>
+                        {% empty %}
+                            <p class="text-sm text-gray-500">Nenhum cartão de crédito cadastrado.</p>
+                        {% endfor %}
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock content %}
+
+{% block scripts %}
+    {{ block.super }}
+    <script id="chart-data" type="application/json">
+        {
+            "labels": {{ chart_labels|safe }},
+            "points": {{ chart_data|safe }}
+        }
+    </script>
+    <script src="{% static 'js/pages/dashboard_chart.js' %}" defer></script>
+{% endblock scripts %}

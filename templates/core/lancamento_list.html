@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load formatacao static %}
+
+{% block title %}Extrato - {{ conta.nome_banco }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+
+    <!-- A Barra de Ações Contextual permanece fora da grade principal, pois tem posicionamento fixo -->
+    <div id="action-bar" class="hidden fixed top-16 left-0 right-0 h-16 bg-blue-100 border-b border-blue-200 z-10 shadow-md flex items-center justify-between px-8 transition-all">
+        <div class="flex items-center space-x-4">
+            <button onclick="clearSelection()" class="text-gray-600 hover:text-gray-900">×</button>
+            <div>
+                <span id="selection-count" class="font-bold text-blue-800">0 lançamentos marcados</span>
+                <span class="text-sm text-blue-700">Total: <span id="selection-total">R$ 0,00</span></span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button id="btn-conciliar" class="text-gray-700 hover:text-purple-600 p-2 rounded-full" title="Conciliar"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button>
+            <button id="btn-editar" class="text-gray-700 hover:text-indigo-600 p-2 rounded-full" title="Editar"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+            <form id="form-excluir-massa" method="post" class="inline">
+                {% csrf_token %}
+                <button id="btn-excluir" type="button" class="text-gray-700 hover:text-red-600 p-2 rounded-full" title="Excluir"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estrutura de Grade Principal (Lateral + Conteúdo) -->
+    <!-- Usando uma grade de 12 colunas para mais controle sobre a proporção -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 lg:gap-8">
+
+        <!-- Coluna da Esquerda: Controles (Filtros) - Ocupando 3 de 12 colunas -->
+        <aside class="lg:col-span-3">
+            <div class="bg-white p-4 rounded-lg shadow space-y-6 sticky top-20">
+                <!-- Seletor de Conta com Ícone de Edição -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-500 mb-1">Conta</label>
+                    <div class="flex items-center space-x-2">
+                        <select onchange="window.location.href=this.value;" class="flex-grow block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            {% for c in todas_as_contas %}
+                                <option value="{% url 'core:lancamento_list' c.pk data_selecionada.year data_selecionada.month %}" {% if c.pk == conta.pk %}selected{% endif %}>
+                                    {{ c.nome_banco }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <a href="{% url 'core:conta_update' conta.pk %}" class="flex-shrink-0 p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Editar conta {{ conta.nome_banco }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                                <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Seletor de Mês -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-500 mb-1">Período</label>
+                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                        <a href="{% url 'core:lancamento_list' conta.pk mes_anterior.year mes_anterior.month %}" title="{{ mes_anterior|date:'F Y' }}">
+                            <svg class="h-6 w-6 text-gray-500 hover:text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        </a>
+                        <span class="text-base font-semibold text-gray-700 text-center">
+                            {{ data_selecionada|date:"F Y"|capfirst }}
+                        </span>
+                        <a href="{% url 'core:lancamento_list' conta.pk mes_seguinte.year mes_seguinte.month %}" title="{{ mes_seguinte|date:'F Y' }}">
+                            <svg class="h-6 w-6 text-gray-500 hover:text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Coluna da Direita: Conteúdo Principal (Extrato) - Ocupando 9 de 12 colunas -->
+        <main class="lg:col-span-9">
+            <!-- Cabeçalho com Título e Botões de Ação -->
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-gray-900">Extrato: {{ conta.nome_banco }}</h1>
+            </div>
+
+            <!-- Lista de Lançamentos -->
+            <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+                <ul class="divide-y divide-gray-200">
+                    {% for lancamento in lancamentos %}
+                    <li class="px-4 py-3 sm:px-6 flex items-center justify-between hover:bg-gray-50 group">
+                        <div class="flex items-center space-x-4 flex-1">
+                            <div class="relative w-5 h-5 flex items-center justify-center">
+                                <span class="h-3 w-3 rounded-full {% if lancamento.conciliado %}bg-purple-500{% else %}bg-green-500{% endif %} group-hover:opacity-0 transition-opacity"></span>
+                                <input type="checkbox" class="absolute opacity-0 group-hover:opacity-100 h-5 w-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer transition-opacity" data-id="{{ lancamento.pk }}" data-valor="{{ lancamento.valor_com_sinal }}">
+                            </div>
+                            <span class="text-sm text-gray-500 w-20">{{ lancamento.data_caixa|date:"d/m/Y" }}</span>
+                            <div class="flex-1">
+                                <p class="text-md font-medium text-gray-800">{{ lancamento.descricao }}</p>
+                                <p class="text-sm text-gray-500">{{ lancamento.categoria.nome|default:"Sem Categoria" }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-8">
+                            <span class="text-md font-semibold w-32 text-right {% if lancamento.tipo == 'D' %}text-red-600{% else %}text-green-600{% endif %}">{{ lancamento.valor_com_sinal|brl }}</span>
+                            <span class="w-28 text-right text-gray-700 font-medium">{{ lancamento.saldo_final_linha|brl }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                    
+                    <!-- Linha do Saldo Inicial do Período -->
+                    <li class="px-4 py-3 sm:px-6 flex items-center justify-between font-semibold text-gray-600 bg-gray-50">
+                        <span>SALDO EM {{ data_selecionada|date:"d/m/Y" }}</span>
+                        <span>{{ saldo_inicial_periodo|brl }}</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Paginação -->
+            {% if is_paginated %}
+            <div class="mt-6 flex items-center justify-between">
+                <div>
+                    {% if page_obj.has_previous %}
+                        <a href="{% url 'core:lancamento_list' conta.pk data_selecionada.year data_selecionada.month %}?page={{ page_obj.previous_page_number }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            « Anterior
+                        </a>
+                    {% else %}
+                        <span class="inline-flex items-center px-4 py-2 border border-gray-200 text-sm font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed">
+                            « Anterior
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="text-sm text-gray-700">
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}.
+                </div>
+                <div>
+                    {% if page_obj.has_next %}
+                        <a href="{% url 'core:lancamento_list' conta.pk data_selecionada.year data_selecionada.month %}?page={{ page_obj.next_page_number }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            Próximo »
+                        </a>
+                    {% else %}
+                        <span class="inline-flex items-center px-4 py-2 border border-gray-200 text-sm font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed">
+                            Próximo »
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <!-- Floating Action Button (FAB) with Alpine.js for options -->
+    <div x-data="{ open: false }" class="fixed bottom-8 right-8 z-20">
+        <!-- Options Menu -->
+        <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2" class="absolute bottom-full right-0 mb-4 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
+            <a href="{% url 'core:lancamento_create' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Adicionar Lançamento</a>
+            <a href="{% url 'core:importar_unificado' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Importar Arquivo</a>
+        </div>
+
+        <!-- Main FAB Button -->
+        <button @click="open = !open" class="bg-red-500 hover:bg-red-600 text-white rounded-full p-4 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" title="Adicionar/Importar">
+            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<!-- O JavaScript existente é mantido, pois controla a barra de ações -->
+<script src="{% static 'js/pages/extrato_actions.js' %}" defer></script>
+{% endblock %}
