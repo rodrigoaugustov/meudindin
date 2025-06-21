@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 
 from ..models import Lancamento, ContaBancaria
-from ..forms import UnifiedImportForm, LancamentoForm
+from ..forms import UnifiedImportForm, LancamentoForm, RegraCategoriaModalForm
 from .. import services
 
 
@@ -39,13 +39,15 @@ def importar_unificado_view(request):
             
             # Adiciona um formulário de lançamento ao contexto para ser usado como template no editor
             form_lancamento = LancamentoForm(user=request.user)
+            form_regra_modal = RegraCategoriaModalForm(user=request.user)
 
             context = {
                 'lancamentos': lancamentos_a_revisar, 
                 'conta': conta_selecionada, 
                 'warnings': warnings, 
                 'lancamentos_antigos': lancamentos_antigos,
-                'form_lancamento': form_lancamento
+                'form_lancamento': form_lancamento,
+                'form_regra_modal': form_regra_modal,
             }
             return render(request, 'core/pre_conciliacao.html', context)
         else:
@@ -78,22 +80,22 @@ def confirmar_importacao_view(request):
         
         lancamentos_para_criar = []
         for data in lancamentos_data:
-            # Validação básica dos dados recebidos
-            if not all(k in data for k in ['descricao', 'valor', 'tipo', 'data_competencia', 'data_caixa', 'categoria_id', 'import_hash']):
+            # Validação básica dos dados recebidos (chaves em camelCase vindas do dataset JS)
+            if not all(k in data for k in ['descricao', 'valor', 'tipo', 'dataCompetencia', 'dataCaixa', 'categoriaId', 'importHash']):
                 continue
 
             lancamentos_para_criar.append(Lancamento(
                 usuario=request.user,
                 conta_bancaria=conta,
-                data_competencia=data['data_competencia'],
-                data_caixa=data['data_caixa'],
+                data_competencia=data['dataCompetencia'],
+                data_caixa=data['dataCaixa'],
                 descricao=data['descricao'],
                 valor=Decimal(data['valor']),
                 tipo='C' if data['tipo'] == 'Crédito' else 'D',
-                categoria_id=int(data['categoria_id']),
+                categoria_id=int(data['categoriaId']),
                 conciliado=True,
-                import_hash=data['import_hash'],
-                numero_documento=data.get('numero_documento')
+                import_hash=data['importHash'],
+                numero_documento=data.get('numeroDocumento')
             ))
 
         if lancamentos_para_criar:

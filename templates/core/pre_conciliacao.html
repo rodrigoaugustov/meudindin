@@ -49,7 +49,7 @@
                         {% for lancamento in lancamentos %}
                         <tr 
                             data-index="{{ forloop.counter0 }}"
-                            data-descricao="{{ lancamento.descricao|escapejs }}"
+                            data-descricao="{{ lancamento.descricao }}"
                             data-valor="{{ lancamento.valor }}"
                             data-tipo="{{ lancamento.tipo }}"
                             data-data-competencia="{{ lancamento.data_competencia }}"
@@ -95,30 +95,35 @@
                             <h3 class="text-lg font-semibold text-gray-800">Editar Lançamento</h3>
                             <div>
                                 <label for="editor_descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
-                                {{ form_lancamento.descricao|attr:"id:editor_descricao,name:descricao" }}
+                                {{ form_lancamento.descricao|attr:"id:editor_descricao,name:descricao,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label for="editor_valor" class="block text-sm font-medium text-gray-700">Valor</label>
-                                    {{ form_lancamento.valor|attr:"id:editor_valor,name:valor" }}
+                                    {{ form_lancamento.valor|attr:"id:editor_valor,name:valor,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
                                 </div>
                                 <div>
                                     <label for="editor_tipo" class="block text-sm font-medium text-gray-700">Tipo</label>
-                                    {{ form_lancamento.tipo|attr:"id:editor_tipo,name:tipo" }}
+                                    {{ form_lancamento.tipo|attr:"id:editor_tipo,name:tipo,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
                                 </div>
                             </div>
                             <div>
-                                <label for="editor_categoria" class="block text-sm font-medium text-gray-700">Categoria</label>
-                                {{ form_lancamento.categoria|attr:"id:editor_categoria,name:categoria" }}
+                                <div class="flex justify-between items-center">
+                                    <label for="editor_categoria" class="block text-sm font-medium text-gray-700">Categoria</label>
+                                    <button type="button" id="btn-criar-regra-modal" class="text-xs text-blue-600 hover:text-blue-800" title="Criar regra a partir deste lançamento">
+                                        + Criar Regra
+                                    </button>
+                                </div>
+                                {{ form_lancamento.categoria|attr:"id:editor_categoria,name:categoria,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
                             </div>
                              <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label for="editor_data_competencia" class="block text-sm font-medium text-gray-700">Data Competência</label>
-                                    {{ form_lancamento.data_competencia|attr:"id:editor_data_competencia,name:data_competencia" }}
+                                    {{ form_lancamento.data_competencia|attr:"id:editor_data_competencia,name:data_competencia,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
                                 </div>
                                 <div>
                                     <label for="editor_data_caixa" class="block text-sm font-medium text-gray-700">Data Caixa</label>
-                                    {{ form_lancamento.data_caixa|attr:"id:editor_data_caixa,name:data_caixa" }}
+                                    {{ form_lancamento.data_caixa|attr:"id:editor_data_caixa,name:data_caixa,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
                                 </div>
                             </div>
                         </form>
@@ -138,9 +143,50 @@
         </form>
     </div>
 </div>
+
+<!-- ### INÍCIO DO MODAL PARA CRIAR REGRA ### -->
+<div id="modal-criar-regra" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+    <div class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Criar Nova Regra de Categoria</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500 mb-4">
+                    Crie uma regra para que futuros lançamentos com esta descrição sejam categorizados automaticamente.
+                </p>
+                <form id="form-criar-regra" method="post" action="{% url 'core:regra_criar_modal' %}" class="space-y-4 text-left">
+                    {% csrf_token %}
+                    <div>
+                        <label for="{{ form_regra_modal.texto_regra.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form_regra_modal.texto_regra.label }}</label>
+                        {{ form_regra_modal.texto_regra }}
+                    </div>
+                    <div>
+                        <label for="{{ form_regra_modal.categoria.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form_regra_modal.categoria.label }}</label>
+                        {{ form_regra_modal.categoria }}
+                    </div>
+                    <div class="relative flex items-start">
+                        <div class="flex h-5 items-center">{{ form_regra_modal.aplicar_retroativo }}</div>
+                        <div class="ml-3 text-sm">
+                            <label for="{{ form_regra_modal.aplicar_retroativo.id_for_label }}" class="font-medium text-gray-700">{{ form_regra_modal.aplicar_retroativo.label }}</label>
+                        </div>
+                    </div>
+                    <div class="items-center px-4 py-3 flex justify-end space-x-4">
+                        <button id="btn-fechar-modal-regra" type="button" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
+                            Salvar Regra
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ### FIM DO MODAL ### -->
 {% endblock %}
 
 {% block scripts %}
 {{ block.super }}
 <script src="{% static 'js/pages/pre_conciliacao.js' %}" defer></script>
+<script src="{% static 'js/pages/pre_conciliacao_rules.js' %}" defer></script>
 {% endblock %}
