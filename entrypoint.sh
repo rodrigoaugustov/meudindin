@@ -13,4 +13,4 @@ python manage.py collectstatic --no-input --clear
 
 # Inicia o servidor Gunicorn
 echo "Iniciando o servidor Gunicorn..."
-exec gunicorn --bind 0.0.0.0:8080 --workers 2 seu_projeto.wsgi
+exec gunicorn --bind 0.0.0.0:8080 --workers 2 gestor_financeiro.wsgi:application
