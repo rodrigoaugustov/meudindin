@@ -1,4 +1,5 @@
 # core/services/account_service.py
+from decimal import Decimal
 from django.db.models import Sum, Q
 from ..models import Lancamento, ContaBancaria
 
@@ -18,8 +19,8 @@ def recalcular_saldo_conta(conta: ContaBancaria):
         total_debitos=Sum('valor', filter=Q(tipo='D'))
     )
 
-    creditos = agregado.get('total_creditos') or 0.00
-    debitos = agregado.get('total_debitos') or 0.00
+    creditos = agregado.get('total_creditos') or Decimal(0.00)
+    debitos = agregado.get('total_debitos') or Decimal(0.00)
     
     # O cálculo correto sempre parte do saldo inicial da conta
     novo_saldo = conta.saldo_inicial + creditos - debitos
