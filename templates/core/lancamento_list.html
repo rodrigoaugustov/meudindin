@@ -73,12 +73,8 @@
         <!-- Coluna da Direita: Conteúdo Principal (Extrato) - Ocupando 9 de 12 colunas -->
         <main class="lg:col-span-9">
             <!-- Cabeçalho com Título e Botões de Ação -->
-            <div class="flex justify-between items-center mb-6">
+            <div class="mb-6">
                 <h1 class="text-3xl font-bold text-gray-900">Extrato: {{ conta.nome_banco }}</h1>
-                <div class="flex space-x-2">
-                    <a href="{% url 'core:importar_csv' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Importar Extrato</a>
-                    <a href="{% url 'core:lancamento_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">Adicionar Lançamento</a>
-                </div>
             </div>
 
             <!-- Lista de Lançamentos -->
@@ -143,6 +139,22 @@
             </div>
             {% endif %}
         </main>
+    </div>
+
+    <!-- Floating Action Button (FAB) with Alpine.js for options -->
+    <div x-data="{ open: false }" class="fixed bottom-8 right-8 z-20">
+        <!-- Options Menu -->
+        <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2" class="absolute bottom-full right-0 mb-4 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
+            <a href="{% url 'core:lancamento_create' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Adicionar Lançamento</a>
+            <a href="{% url 'core:importar_unificado' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Importar Arquivo</a>
+        </div>
+
+        <!-- Main FAB Button -->
+        <button @click="open = !open" class="bg-red-500 hover:bg-red-600 text-white rounded-full p-4 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" title="Adicionar/Importar">
+            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+        </button>
     </div>
 </div>
 {% endblock %}

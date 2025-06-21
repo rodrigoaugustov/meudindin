@@ -24,7 +24,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
-from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, CSVImportForm, ConciliacaoForm
+from .forms import ContaBancariaForm, CartaoCreditoForm, CategoriaForm, LancamentoForm, ConciliacaoForm, UnifiedImportForm
 from . import services
 
 
@@ -400,42 +400,115 @@ def excluir_lancamentos_em_massa(request):
     except (json.JSONDecodeError, TypeError, ValueError):
         return JsonResponse({'status': 'error', 'message': 'Requisição inválida.'}, status=400)
 
+@require_POST
+@login_required
+def iniciar_fila_conciliacao_view(request):
+    try:
+        data = json.loads(request.body)
+        ids = [int(id_str) for id_str in data.get('ids', [])]
+
+        # Validação: Garante que todos os IDs pertencem ao usuário
+        lancamentos_validos = Lancamento.objects.filter(usuario=request.user, id__in=ids, conciliado=False).order_by('data_caixa', 'id')
+        ids_validos = list(lancamentos_validos.values_list('id', flat=True))
+
+        if not ids_validos:
+            return JsonResponse({'status': 'info', 'message': 'Todos os lançamentos selecionados já estão conciliados.\nPara alterar lançamentos conciliados, primeiro faça a edição'}, status=200)
+
+        # Salva a fila de IDs válidos na sessão
+        request.session['conciliation_queue'] = ids_validos
+        
+        # Pega o primeiro ID para iniciar o fluxo
+        primeiro_id = ids_validos[0]
+        
+        # Gera a URL de redirecionamento para o primeiro item
+        redirect_url = reverse('core:lancamento_conciliar', kwargs={'pk': primeiro_id})
+        
+        return JsonResponse({'status': 'success', 'redirect_url': redirect_url})
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Requisição inválida.'}, status=400)
+    
+
+@require_POST
+@login_required
+def iniciar_fila_edicao_view(request):
+    try:
+        data = json.loads(request.body)
+        ids = [int(id_str) for id_str in data.get('ids', [])]
+
+        # Apenas validamos se os lançamentos pertencem ao usuário
+        lancamentos_validos = Lancamento.objects.filter(
+            usuario=request.user, id__in=ids
+        ).order_by('data_caixa', 'id')
+
+        ids_para_a_fila = list(lancamentos_validos.values_list('id', flat=True))
+
+        if not ids_para_a_fila:
+            return JsonResponse({'status': 'error', 'message': 'Nenhum lançamento válido selecionado.'}, status=400)
+
+        # Usamos uma chave de sessão diferente para a fila de edição
+        request.session['edition_queue'] = ids_para_a_fila
+        
+        primeiro_id = ids_para_a_fila[0]
+        
+        # Redirecionamos para a view de UPDATE existente
+        redirect_url = reverse('core:lancamento_update', kwargs={'pk': primeiro_id})
+        
+        return JsonResponse({'status': 'success', 'redirect_url': redirect_url})
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Requisição inválida.'}, status=400)
     
 @login_required
-def importar_csv_view(request):
+def importar_unificado_view(request):
+    template_name = 'core/importar_unificado.html'
     if request.method == 'POST':
-        form = CSVImportForm(request.POST, request.FILES, user=request.user)
+        form = UnifiedImportForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
-            csv_file = form.cleaned_data['csv_file']
+            import_type = form.cleaned_data['import_type']
             conta_selecionada = form.cleaned_data['conta_bancaria']
+            import_file = form.cleaned_data['import_file']
 
-            lancamentos_a_revisar, warnings, lancamentos_antigos = services.processar_arquivo_csv(
-                csv_file=csv_file,
-                conta_selecionada=conta_selecionada
-            )
+            lancamentos_a_revisar = []
+            warnings = []
+            lancamentos_antigos = [] # Only used for CSV
+
+            if import_type == 'csv':
+                lancamentos_a_revisar, warnings, lancamentos_antigos = services.processar_arquivo_csv(
+                    csv_file=import_file,
+                    conta_selecionada=conta_selecionada
+                )
+                pre_conciliacao_template = 'core/pre_conciliacao.html'
+            elif import_type == 'ofx':
+                lancamentos_a_revisar, warnings, lancamentos_antigos = services.processar_arquivo_ofx(
+                    ofx_file=import_file,
+                    conta_selecionada=conta_selecionada
+                )
+                pre_conciliacao_template = 'core/pre_conciliacao.html'
+            else:
+                messages.error(request, "Tipo de importação inválido.")
+                return redirect('core:importar_unificado')
             
-            # Armazena os dados processados e o ID da conta na sessão do usuário
             request.session['lancamentos_para_importar'] = lancamentos_a_revisar
             request.session['conta_pk_para_importar'] = conta_selecionada.pk
+            request.session['import_type_para_confirmar'] = import_type
 
-            context = {
-                'lancamentos': lancamentos_a_revisar,
-                'conta': conta_selecionada,
-                'lancamentos_antigos': lancamentos_antigos, # <-- NOVO CONTEXTO
-            }
-            
-            # Renderiza o template de pré-conciliação
-            return render(request, 'core/pre_conciliacao.html', context)
+            context = {'lancamentos': lancamentos_a_revisar, 'conta': conta_selecionada, 'warnings': warnings, 'lancamentos_antigos': lancamentos_antigos}
+            return render(request, pre_conciliacao_template, context)
+        else:
+            messages.error(request, "Houve um erro na validação do formulário. Por favor, corrija os erros abaixo.")
+    else: # GET request
+        form = UnifiedImportForm(user=request.user)
+    
+    return render(request, template_name, {'form': form})
 
-    # Se o método for GET, exibe o formulário de upload normal
-    form = CSVImportForm(user=request.user)
-    return render(request, 'core/importar_csv.html', {'form': form})
 
 @login_required
 def confirmar_importacao_view(request):
     if request.method == 'POST':
         lancamentos_data = request.session.pop('lancamentos_para_importar', [])
         conta_pk = request.session.pop('conta_pk_para_importar', None)
+        # Limpa outras chaves de sessão relacionadas para evitar lixo
+        request.session.pop('import_type_para_confirmar', None)
+        request.session.pop('ofx_warnings', None)
         
         # Lê os índices das linhas que o usuário marcou para ignorar
         indices_a_ignorar_str = request.POST.get('indices_a_ignorar', '')
@@ -443,27 +516,27 @@ def confirmar_importacao_view(request):
 
         if not lancamentos_data or not conta_pk:
             messages.error(request, "Nenhum dado para importar encontrado ou a sessão expirou. Por favor, tente novamente.")
-            return redirect('core:importar_csv')
+            return redirect('core:importar_unificado') # Redirect to unified import
 
         conta = get_object_or_404(ContaBancaria, pk=conta_pk, usuario=request.user)
         
         lancamentos_para_criar = []
         # Itera sobre os dados usando enumerate para ter acesso ao índice
         for indice, data in enumerate(lancamentos_data):
-            if indice in indices_a_ignorar or data.get('ja_importado'): # Pula se ignorado OU se já importado
+            if indice in indices_a_ignorar or data.get('ja_importado'):
                 continue
 
             lancamentos_para_criar.append(Lancamento(
                 usuario=request.user,
-            conta_bancaria=conta,
-            data_competencia=data['data_competencia'],
-            data_caixa=data['data_caixa'],
-            descricao=data['descricao'],
-            valor=Decimal(data['valor']),
-            tipo='C' if data['tipo'] == 'Crédito' else 'D',
-            conciliado=True,
-            import_hash=data['import_hash'],
-            numero_documento=data['numero_documento'] # <-- SALVA O NÚMERO DO DOCUMENTO
+                conta_bancaria=conta,
+                data_competencia=data['data_competencia'],
+                data_caixa=data['data_caixa'],
+                descricao=data['descricao'],
+                valor=Decimal(data['valor']),
+                tipo='C' if data['tipo'] == 'Crédito' else 'D',
+                conciliado=True,
+                import_hash=data['import_hash'],
+                numero_documento=data['numero_documento']
             ))
 
         if lancamentos_para_criar:
@@ -472,10 +545,10 @@ def confirmar_importacao_view(request):
             messages.success(request, f"{len(lancamentos_para_criar)} lançamentos foram importados com sucesso!")
         else:
             messages.warning(request, "Nenhum lançamento foi importado.")
-            
+
         return redirect('core:lancamento_list_atual', conta_pk=conta.pk)
 
-    return redirect('core:importar_csv')
+    return redirect('core:importar_unificado')
 
 
 @login_required

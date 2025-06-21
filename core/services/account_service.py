@@ -8,7 +8,7 @@ def recalcular_saldo_conta(conta: ContaBancaria):
     Recalcula e atualiza o saldo de uma conta bancária específica.
     Esta é a lógica central que será usada por signals e chamadas manuais.
     """
-    if not isinstance(conta, ContaBancaria):
+    if not isinstance(conta, ContaBancaria) or not conta.pk:
         return
 
     # Agrega todos os lançamentos da conta

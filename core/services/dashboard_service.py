@@ -33,14 +33,15 @@ def gerar_dados_grafico_saldo(usuario, ano, mes):
             soma_creditos=Sum('valor', filter=Q(tipo='C')),
             soma_debitos=Sum('valor', filter=Q(tipo='D'))
         )
-        saldo_conta += (lancamentos_passados['soma_creditos'] or 0)
-        saldo_conta -= (lancamentos_passados['soma_debitos'] or 0)
+        saldo_conta += (lancamentos_passados['soma_creditos'] or Decimal('0.0'))
+        saldo_conta -= (lancamentos_passados['soma_debitos'] or Decimal('0.0'))
         saldo_acumulado += saldo_conta
 
     # Busca os lançamentos que ocorreram no mês selecionado
     lancamentos_periodo = Lancamento.objects.filter(
         usuario=usuario,
-        data_caixa__range=(data_inicio_mes, data_fim_mes)
+        data_caixa__range=(data_inicio_mes, data_fim_mes),
+        conta_bancaria__isnull=False
                 ).order_by('data_caixa')
 
     mudancas_diarias = {}

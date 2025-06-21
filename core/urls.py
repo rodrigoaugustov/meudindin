@@ -22,13 +22,12 @@ from .views import (
     LancamentoListView,
     LancamentoUpdateView, 
     LancamentoDeleteView,
-    importar_csv_view,
     confirmar_importacao_view,
     conciliar_lancamento_view,
     excluir_lancamentos_em_massa,
     iniciar_fila_conciliacao_view,
     iniciar_fila_edicao_view,
-    LancamentoListView,
+    importar_unificado_view
 )
 
 app_name = 'core'
@@ -71,8 +70,8 @@ urlpatterns += [
     path('lancamentos/<int:pk>/editar/', LancamentoUpdateView.as_view(), name='lancamento_update'),
     path('lancamentos/<int:pk>/excluir/', LancamentoDeleteView.as_view(), name='lancamento_delete'),
     path('lancamentos/bulk-delete/', excluir_lancamentos_em_massa, name='lancamento_bulk_delete'),
-    # Rota para a importação de CSV
-    path('importar/csv/', importar_csv_view, name='importar_csv'),
+    # Rota para a importação unificada
+    path('importar/unificado/', importar_unificado_view, name='importar_unificado'),
     # Rota para confirmar a importação
     path('importar/confirmar/', confirmar_importacao_view, name='confirmar_importacao'),
     # Rota para conciliar um lançamento

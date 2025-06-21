@@ -1,5 +1,6 @@
 # core/forms.py
 
+import os
 from django import forms
 from django.db.models import Q
 
@@ -142,26 +143,53 @@ class LancamentoForm(forms.ModelForm):
 
         return cleaned_data
 
+class UnifiedImportForm(forms.Form):
+    IMPORT_CHOICES = [
+        ('csv', 'CSV (Planilha)'),
+        ('ofx', 'OFX (Extrato Bancário)'),
+    ]
 
-class CSVImportForm(forms.Form):
-    # Campo para o usuário selecionar a conta de destino
+    import_type = forms.ChoiceField(
+        choices=IMPORT_CHOICES,
+        label="Tipo de Importação",
+        widget=forms.Select(attrs={'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'})
+    )
     conta_bancaria = forms.ModelChoiceField(
-        queryset=ContaBancaria.objects.none(),  # Será filtrado na view
+        queryset=ContaBancaria.objects.none(),
         label="Importar para a Conta",
         empty_label="--- Selecione a Conta ---",
         widget=forms.Select(attrs={'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'})
     )
-    # Campo para o upload do arquivo
-    csv_file = forms.FileField(
-        label="Selecione o arquivo CSV",
+    import_file = forms.FileField(
+        label="Selecione o Arquivo",
         widget=forms.FileInput(attrs={'class': 'mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'})
     )
 
     def __init__(self, *args, user=None, **kwargs):
-        """Filtra o queryset de contas para mostrar apenas as do usuário logado."""
         super().__init__(*args, **kwargs)
         if user:
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(usuario=user)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        import_type = cleaned_data.get('import_type')
+        import_file = cleaned_data.get('import_file')
+
+        if import_type and import_file:
+            # Obtém a extensão do arquivo
+            file_name, file_extension = os.path.splitext(import_file.name)
+            file_extension = file_extension.lower() # Converte para minúsculas para comparação sem distinção de maiúsculas/minúsculas
+
+            expected_extension_map = {
+                'csv': '.csv',
+                'ofx': '.ofx',
+            }
+            expected_extension = expected_extension_map.get(import_type)
+
+            if expected_extension and file_extension != expected_extension:
+                import_type_display = dict(self.IMPORT_CHOICES).get(import_type, import_type.upper())
+                self.add_error('import_file', f"O arquivo selecionado não corresponde ao tipo de importação '{import_type_display}'. Por favor, selecione um arquivo com a extensão '{expected_extension}'.")
+        return cleaned_data
 
 class ConciliacaoForm(forms.Form):
     # Usamos CharField para data para usar o widget de texto com tipo 'date'

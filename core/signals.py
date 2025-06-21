@@ -11,27 +11,16 @@ def atualizar_saldo_conta(sender, instance, **kwargs):
     Este sinal é acionado sempre que um Lançamento é salvo ou deletado.
     Ele recalcula e atualiza o campo 'saldo_calculado' da ContaBancaria associada.
     """
-    print("SINAL ATIVO")
-    conta = instance.conta_bancaria
+    
+    # Tenta obter a conta bancária do lançamento.
+    # Em uma exclusão em cascata, a conta pode não existir mais.
+    try:
+        conta = instance.conta_bancaria
+    except ContaBancaria.DoesNotExist:
+        return
 
     if conta:
-        # Usamos aggregate para calcular a soma de créditos e débitos de uma só vez
-        agregado = Lancamento.objects.filter(
-            conta_bancaria=conta
-        ).aggregate(
-            total_creditos=Sum('valor', filter=Q(tipo='C')),
-            total_debitos=Sum('valor', filter=Q(tipo='D'))
-        )
-
-        creditos = agregado.get('total_creditos') or Decimal(0)
-        debitos = agregado.get('total_debitos') or Decimal(0)
-        saldo_inicial = conta.saldo_inicial
-
-        novo_saldo = saldo_inicial + creditos - debitos
-
-        # Atualiza o saldo na conta usando .update() para eficiência,
-        # evitando chamar o .save() do modelo e re-disparar sinais.
-        ContaBancaria.objects.filter(pk=conta.pk).update(saldo_calculado=novo_saldo)
+        recalcular_saldo_conta(conta)
 
 @receiver(post_save, sender=ContaBancaria)
 def atualizar_saldo_conta_por_alteracao_conta(sender, instance, **kwargs):

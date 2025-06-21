@@ -1,35 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Revisar Importação{% endblock %}
+{% block title %}Revisar Importação OFX{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
     <div class="bg-white shadow-lg rounded-lg p-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Revisar e Confirmar Importação</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Revisar e Confirmar Importação OFX</h1>
         <p class="text-gray-600 mb-6">Os seguintes lançamentos serão importados para a conta <strong>{{ conta.nome_banco }}</strong>.</p>
 
-        <!-- ### INÍCIO DO NOVO BLOCO DE AVISO ### -->
-        {% if lancamentos_antigos %}
+        {% if warnings %}
         <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded-md" role="alert">
-            <p class="font-bold">Atenção: Lançamentos Ignorados</p>
-            <p class="mt-2 text-sm">
-                Os {{ lancamentos_antigos|length }} lançamentos listados abaixo foram ignorados pois suas datas são <strong>anteriores</strong> à data de saldo inicial da conta, que é <strong>{{ conta.data_saldo_inicial|date:"d/m/Y" }}</strong>.
-            </p>
-            <p class="mt-2 text-sm">
-                Se desejar incluí-los, você precisará 
-                <a href="{% url 'core:conta_update' conta.pk %}" class="font-bold underline hover:text-yellow-800">
-                    editar sua conta
-                </a> 
-                e ajustar a data e o valor do saldo inicial antes de tentar a importação novamente.
-            </p>
-            <ul class="list-disc list-inside mt-3 text-sm">
-                {% for lanc in lancamentos_antigos %}
-                <li>{{ lanc.data_caixa }} - {{ lanc.descricao }} (R$ {{ lanc.valor }})</li>
+            <p class="font-bold">Avisos durante a importação:</p>
+            <ul class="list-disc list-inside mt-2 text-sm">
+                {% for warning in warnings %}
+                <li>{{ warning }}</li>
                 {% endfor %}
             </ul>
         </div>
         {% endif %}
-        <!-- ### FIM DO NOVO BLOCO DE AVISO ### -->
         
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -86,57 +74,21 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Formata as datas para o padrão brasileiro (código existente)
     const linhas = document.querySelectorAll('#lancamentos-table-body tr');
     linhas.forEach(linha => {
         const celulaData = linha.querySelector('td[data-data-bruta]');
         if (celulaData) {
             const dataBruta = celulaData.getAttribute('data-data-bruta');
-            const partes = dataBruta.split('-');
-            if (partes.length === 3) {
-                celulaData.textContent = `${partes[2]}/${partes[1]}/${partes[0]}`;
-            }
+            const dataObj = new Date(dataBruta);
+            const dia = String(dataObj.getDate()).padStart(2, '0');
+            const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+            const ano = dataObj.getFullYear();
+            celulaData.textContent = `${dia}/${mes}/${ano}`;
         }
     });
 });
-function excluirLinha(botao, indice) {
-    const linha = botao.closest('tr');
-    const campoIgnorar = document.getElementById('indices_a_ignorar');
-    let indicesIgnorados = campoIgnorar.value ? campoIgnorar.value.split(',') : [];
-    
-    // Converte o índice para string para comparação
-    const indiceStr = indice.toString();
 
-    // Verifica se a linha JÁ está marcada para exclusão
-    if (linha.classList.contains('line-through')) {
-        // --- LÓGICA PARA DESMARCAR ---
-        
-        // Remove o estilo visual
-        linha.classList.remove('line-through', 'text-gray-400', 'bg-gray-50');
-        
-        // Remove o índice da lista de ignorados
-        indicesIgnorados = indicesIgnorados.filter(item => item !== indiceStr);
-        
-        // Altera o título do botão para indicar a próxima ação
-        botao.title = "Não importar este lançamento";
-
-    } else {
-        // --- LÓGICA PARA MARCAR ---
-        
-        // Adiciona o estilo visual
-        linha.classList.add('line-through', 'text-gray-400', 'bg-gray-50');
-        
-        // Adiciona o índice à lista de ignorados (se ainda não estiver lá, por segurança)
-        if (!indicesIgnorados.includes(indiceStr)) {
-            indicesIgnorados.push(indiceStr);
-        }
-
-        // Altera o título do botão para indicar a próxima ação
-        botao.title = "Reincluir este lançamento na importação";
-    }
-
-    // Atualiza o valor do campo escondido com a nova lista
-    campoIgnorar.value = indicesIgnorados.join(',');
-}
+// Reusing the existing JavaScript function for excluding lines
+{% include "core/js/excluir_linha_script.html" %}
 </script>
 {% endblock %}
