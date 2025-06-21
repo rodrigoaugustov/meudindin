@@ -6,7 +6,18 @@ from django.db.models import Q
 
 from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito
 
-class ContaBancariaForm(forms.ModelForm):
+class TailwindFormMixin:
+    """Mixin para aplicar classes CSS do Tailwind a todos os campos de um formulário."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        tailwind_classes = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        for field_name, field in self.fields.items():
+            # Aplica a classe apenas se o widget não tiver uma classe definida
+            if 'class' not in field.widget.attrs:
+                field.widget.attrs['class'] = tailwind_classes
+
+
+class ContaBancariaForm(TailwindFormMixin, forms.ModelForm):
     class Meta:
         model = ContaBancaria
         fields = ['nome_banco', 'agencia', 'numero_conta', 'saldo_inicial', 'data_saldo_inicial']
@@ -21,13 +32,8 @@ class ContaBancariaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Classes CSS padrão para os campos do formulário
-        tailwind_classes = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-
         # Itera sobre todos os campos do formulário e adiciona as classes
         for field_name, field in self.fields.items():
-            field.widget.attrs['class'] = tailwind_classes
-            
             # Adiciona placeholders para uma melhor UX
             if field_name == 'agencia':
                 field.widget.attrs['placeholder'] = '0001 (Opcional)'
@@ -38,7 +44,7 @@ class ContaBancariaForm(forms.ModelForm):
             if field_name == 'data_saldo_inicial':
                 field.widget.attrs['type'] = 'date'
 
-class CartaoCreditoForm(forms.ModelForm):
+class CartaoCreditoForm(TailwindFormMixin, forms.ModelForm):
     class Meta:
         model = CartaoCredito
         fields = ['nome_cartao', 'limite', 'dia_fechamento', 'dia_vencimento']
@@ -49,13 +55,7 @@ class CartaoCreditoForm(forms.ModelForm):
             'dia_vencimento': 'Dia do Vencimento da Fatura',
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        tailwind_classes = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        for field_name, field in self.fields.items():
-            field.widget.attrs['class'] = tailwind_classes
-
-class CategoriaForm(forms.ModelForm):
+class CategoriaForm(TailwindFormMixin, forms.ModelForm):
     class Meta:
         model = Categoria
         fields = ['nome']
@@ -63,7 +63,6 @@ class CategoriaForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['nome'].widget.attrs['class'] = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
         self.fields['nome'].widget.attrs['placeholder'] = 'Ex: Alimentação, Moradia, Lazer...'
 
 
@@ -72,7 +71,7 @@ class CategoriaModelChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         return obj.nome
 
-class LancamentoForm(forms.ModelForm):
+class LancamentoForm(TailwindFormMixin, forms.ModelForm):
     # Usando o campo customizado para as categorias
     categoria = CategoriaModelChoiceField(
         queryset=Categoria.objects.none(), # O queryset será definido no __init__
@@ -113,13 +112,7 @@ class LancamentoForm(forms.ModelForm):
             ).order_by('nome')
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(usuario=user)
             self.fields['cartao_credito'].queryset = CartaoCredito.objects.filter(usuario=user)
-        
-        # Adiciona classes do Tailwind
-        tailwind_classes = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        for field_name, field in self.fields.items():
-            if not field.widget.attrs.get('class'):
-                field.widget.attrs['class'] = tailwind_classes
-    
+            
     def clean(self):
         """
         Validação customizada para garantir que conta bancária e cartão de crédito
@@ -191,14 +184,7 @@ class UnifiedImportForm(forms.Form):
                 self.add_error('import_file', f"O arquivo selecionado não corresponde ao tipo de importação '{import_type_display}'. Por favor, selecione um arquivo com a extensão '{expected_extension}'.")
         return cleaned_data
 
-class ConciliacaoForm(forms.Form):
+class ConciliacaoForm(TailwindFormMixin, forms.Form):
     # Usamos CharField para data para usar o widget de texto com tipo 'date'
     data_caixa = forms.CharField(label="Data Efetiva", widget=forms.TextInput(attrs={'type': 'date', 'class': 'input-tailwind'}))
     valor = forms.DecimalField(label="Valor Efetivo", widget=forms.NumberInput(attrs={'class': 'input-tailwind'}))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Aplica as classes do Tailwind a todos os campos
-        tailwind_classes = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        for field_name, field in self.fields.items():
-            field.widget.attrs['class'] = tailwind_classes
