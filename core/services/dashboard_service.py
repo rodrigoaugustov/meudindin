@@ -11,6 +11,7 @@ def gerar_dados_grafico_saldo(usuario, ano, mes):
     Calcula os dados para o gráfico de evolução de saldo para o mês e ano especificados.
     """
     contas_bancarias = ContaBancaria.objects.filter(usuario=usuario)
+    
     chart_labels = []
     chart_data = []
 
@@ -22,20 +23,34 @@ def gerar_dados_grafico_saldo(usuario, ano, mes):
     data_inicio_mes = date(ano, mes, 1)
     data_fim_mes = data_inicio_mes + relativedelta(months=1) - relativedelta(days=1)
 
-    saldo_acumulado = Decimal('0.0')
-    for conta in contas_bancarias:
-        saldo_conta = conta.saldo_inicial
-        lancamentos_passados = Lancamento.objects.filter(
-            conta_bancaria=conta,
-            data_caixa__lt=data_inicio_mes,
-            data_caixa__gte=conta.data_saldo_inicial
-        ).aggregate(
-            soma_creditos=Sum('valor', filter=Q(tipo='C')),
-            soma_debitos=Sum('valor', filter=Q(tipo='D'))
-        )
-        saldo_conta += (lancamentos_passados['soma_creditos'] or Decimal('0.0'))
-        saldo_conta -= (lancamentos_passados['soma_debitos'] or Decimal('0.0'))
-        saldo_acumulado += saldo_conta
+     # 1. Mapeia as contas para seus saldos e datas iniciais.
+    contas_map = {
+        c.id: {'saldo_inicial': c.saldo_inicial, 'data_saldo_inicial': c.data_saldo_inicial}
+        for c in contas_bancarias
+    }
+
+    # 2. Busca todos os lançamentos passados para todas as contas em uma única query.
+    lancamentos_passados = Lancamento.objects.filter(
+        usuario=usuario,
+        conta_bancaria_id__in=contas_map.keys(),
+        data_caixa__lt=data_inicio_mes
+    ).values('conta_bancaria_id', 'tipo', 'valor', 'data_caixa')
+
+    # 3. Processa os saldos em memória (muito mais rápido que N queries no DB).
+    # Começa com o saldo inicial de cada conta.
+    saldos_por_conta = {conta_id: data['saldo_inicial'] for conta_id, data in contas_map.items()}
+
+    # Adiciona/subtrai os lançamentos passados para cada conta.
+    for lanc in lancamentos_passados:
+        conta_id = lanc['conta_bancaria_id']
+        # Apenas considera transações que ocorreram APÓS a data de saldo inicial da conta.
+        if lanc['data_caixa'] >= contas_map[conta_id]['data_saldo_inicial']:
+            valor_com_sinal = lanc['valor'] if lanc['tipo'] == 'C' else -lanc['valor']
+            saldos_por_conta[conta_id] += valor_com_sinal
+
+    # 4. O saldo acumulado no início do mês é a soma dos saldos calculados de cada conta.
+    saldo_acumulado = sum(saldos_por_conta.values())
+
 
     # Busca os lançamentos que ocorreram no mês selecionado
     lancamentos_periodo = Lancamento.objects.filter(
