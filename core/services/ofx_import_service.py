@@ -4,8 +4,9 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from ofxparse import OfxParser
 
-from ..models import Lancamento
+from ..models import Lancamento, get_default_other_category
 from ..utils import gerar_hash_lancamento
+from .. import services
 
 def processar_arquivo_ofx(ofx_file, conta_selecionada):
     """
@@ -59,6 +60,14 @@ def processar_arquivo_ofx(ofx_file, conta_selecionada):
                 numero_documento=numero_documento, valor=valor
             )
 
+            # Cria uma instância temporária para aplicar as regras de categoria
+            temp_lancamento = Lancamento(
+                usuario=conta_selecionada.usuario,
+                descricao=descricao,
+                categoria=get_default_other_category()
+            )
+            services.aplicar_regras_para_lancamento(temp_lancamento)
+
             if data_caixa_obj.date() < data_saldo_inicial_conta:
                 # Se for, adiciona à lista de 'antigos' e pula para a próxima linha.
                 lancamentos_antigos.append({
@@ -72,7 +81,9 @@ def processar_arquivo_ofx(ofx_file, conta_selecionada):
                 'data_competencia': data_competencia_obj.date().isoformat(), 'data_caixa': data_caixa_obj.date().isoformat(),
                 'descricao': descricao, 'valor': f'{abs(valor):.2f}', 'tipo': tipo,
                 'import_hash': hash_gerado, 'ja_importado': hash_gerado in hashes_existentes,
-                'numero_documento': numero_documento
+                'numero_documento': numero_documento,
+                'categoria_id': temp_lancamento.categoria.id,
+                'categoria_nome': temp_lancamento.categoria.nome,
             })
 
         except (InvalidOperation, ValueError, AttributeError) as e:

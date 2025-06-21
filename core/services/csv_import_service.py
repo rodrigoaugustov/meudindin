@@ -4,8 +4,9 @@ import io
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
-from ..models import Lancamento
+from ..models import Lancamento, get_default_other_category
 from ..utils import gerar_hash_lancamento
+from .. import services
 
 def processar_arquivo_csv(csv_file, conta_selecionada):
     """
@@ -52,6 +53,15 @@ def processar_arquivo_csv(csv_file, conta_selecionada):
                 numero_documento=numero_documento, valor=valor
             )
 
+            # Cria uma instância temporária para aplicar as regras de categoria
+            temp_lancamento = Lancamento(
+                usuario=conta_selecionada.usuario,
+                descricao=descricao,
+                # Define a categoria padrão para que as regras possam ser aplicadas
+                categoria=get_default_other_category()
+            )
+            services.aplicar_regras_para_lancamento(temp_lancamento)
+
             if data_caixa_obj < data_saldo_inicial_conta:
                 # Se for, adiciona à lista de 'antigos' e pula para a próxima linha.
                 lancamentos_antigos.append({
@@ -68,7 +78,9 @@ def processar_arquivo_csv(csv_file, conta_selecionada):
                 'tipo': 'Crédito' if valor > 0 else 'Débito',
                 'import_hash': hash_gerado,
                 'ja_importado': hash_gerado in hashes_existentes,
-                'numero_documento': numero_documento
+                'numero_documento': numero_documento,
+                'categoria_id': temp_lancamento.categoria.id,
+                'categoria_nome': temp_lancamento.categoria.nome,
             })
 
         except (IndexError, ValueError, InvalidOperation) as e:
