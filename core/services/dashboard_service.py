@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 
-from ..models import ContaBancaria, Lancamento
+from ..models import ContaBancaria, Lancamento, Fatura
 from django.db.models import Sum, Q
 
 def gerar_dados_grafico_saldo(usuario, ano, mes, contas_ids=None):
@@ -54,6 +54,21 @@ def gerar_dados_grafico_saldo(usuario, ano, mes, contas_ids=None):
         valor_com_sinal = lancamento.valor if lancamento.tipo == 'C' else -lancamento.valor
         mudancas_diarias[lancamento.data_caixa] = mudancas_diarias.get(lancamento.data_caixa, Decimal('0.0')) + valor_com_sinal
 
+    # Adiciona a projeção de pagamento de faturas ABERTAS para as contas selecionadas.
+    # Faturas FECHADAS já têm um lançamento de pagamento que é pego pela query anterior.
+    faturas_abertas_periodo = Fatura.objects.filter(
+        usuario=usuario,
+        status=Fatura.StatusFatura.ABERTA,
+        data_vencimento__range=(data_inicio_mes, data_fim_mes),
+        cartao__conta_pagamento__in=contas_a_calcular
+    )
+
+    for fatura in faturas_abertas_periodo:
+        # O pagamento da fatura é sempre um débito no fluxo de caixa da conta.
+        valor_debito = -fatura.valor_total
+        data_vencimento = fatura.data_vencimento
+        mudancas_diarias[data_vencimento] = mudancas_diarias.get(data_vencimento, Decimal('0.0')) + valor_debito
+
     # 6. Popula os dados do gráfico dia a dia, começando com o saldo inicial calculado.
     chart_labels = []
     chart_data = []
@@ -76,18 +91,24 @@ def gerar_dados_grafico_categorias(usuario, ano, mes, contas_ids=None):
     data_inicio_mes = date(ano, mes, 1)
     data_fim_mes = data_inicio_mes + relativedelta(months=1) - relativedelta(days=1)
 
-    # Busca todas as despesas do período, agrupadas por categoria
+    # Busca todas as despesas do período, agrupadas por categoria.
     despesas_qs = Lancamento.objects.filter(
         usuario=usuario,
         tipo='D', # Apenas Débitos (despesas)
-        data_competencia__range=(data_inicio_mes, data_fim_mes)
+        data_caixa__range=(data_inicio_mes, data_fim_mes)
+    ).exclude(
+        # Exclui o pagamento da fatura para não contar a despesa duas vezes.
+        # As despesas reais já estão nos lançamentos individuais do cartão.
+        categoria__nome="Pagamento de Fatura"
     )
 
     if contas_ids is not None:
-        # Ao filtrar por contas, mostramos apenas despesas que saíram diretamente dessas contas.
-        # Lançamentos de cartão de crédito são intencionalmente excluídos do gráfico de categorias quando um filtro de conta está ativo,
-        # pois eles não estão vinculados a uma conta bancária específica no momento da despesa.
-        despesas_qs = despesas_qs.filter(conta_bancaria_id__in=contas_ids)
+        # Inclui despesas de conta E de cartão de crédito
+        # cuja conta de pagamento está na lista de contas selecionadas.
+        filtro_contas = Q(conta_bancaria_id__in=contas_ids)
+        filtro_cartoes = Q(cartao_credito__conta_pagamento_id__in=contas_ids)
+        
+        despesas_qs = despesas_qs.filter(filtro_contas | filtro_cartoes)
 
     despesas_por_categoria = despesas_qs.values(
         'categoria__nome' # Agrupa pelo nome da categoria

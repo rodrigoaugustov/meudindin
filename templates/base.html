@@ -35,10 +35,10 @@
                           <!-- ### INÍCIO DA LÓGICA DO LINK DE LANÇAMENTOS ### -->
                             {% if conta_maior_saldo %}
                                 <!-- Se o usuário tem uma conta, o link leva para o extrato da conta de maior saldo -->
-                                <a href="{% url 'core:lancamento_list_atual' conta_maior_saldo.pk %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Lançamentos</a>
+                                <a href="{% url 'core:lancamento_list_atual' conta_maior_saldo.pk %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Contas</a>
                             {% else %}
                                 <!-- Se não tem contas, o link leva para a página de criação de contas -->
-                                <a href="{% url 'core:conta_list' %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Lançamentos</a>
+                                <a href="{% url 'core:conta_list' %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Contas</a>
                             {% endif %}
                             {% if primeiro_cartao %}
                                 <a href="{% url 'core:fatura_list_atual' primeiro_cartao.pk %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Cartões</a>

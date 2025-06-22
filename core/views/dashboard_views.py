@@ -41,10 +41,17 @@ def home(request, ano=None, mes=None):
     dados_fluxo_caixa_completo = services.gerar_dados_fluxo_caixa(request.user, ano, contas_ids=contas_selecionadas_ids)
 
     # Encontra o índice de "hoje" nos labels do gráfico para dividir a linha em real vs. projetado
-    today_str = hoje.strftime('%d/%m')
-    chart_today_index = -1
-    if today_str in chart_labels:
-        chart_today_index = chart_labels.index(today_str)
+    chart_today_index = -1  # Padrão: -1 (mês passado, sem projeção)
+    hoje_primeiro_dia = hoje.replace(day=1)
+
+    if data_selecionada > hoje_primeiro_dia:
+        # Mês futuro: toda a linha é tracejada
+        chart_today_index = 0
+    elif data_selecionada == hoje_primeiro_dia:
+        # Mês atual: encontra o dia de hoje
+        today_str = hoje.strftime('%d/%m')
+        if today_str in chart_labels:
+            chart_today_index = chart_labels.index(today_str)
 
     context = {
         'contas_bancarias': contas_bancarias,
@@ -81,11 +88,18 @@ def dashboard_data_view(request):
     dados_grafico_despesas = services.gerar_dados_grafico_categorias(request.user, ano=ano, mes=mes, contas_ids=contas_ids)
     dados_fluxo_caixa_completo = services.gerar_dados_fluxo_caixa(request.user, ano, contas_ids=contas_ids)
 
-    today_str = hoje.strftime('%d/%m')
-    chart_today_index = -1
-    if today_str in chart_labels:
-        chart_today_index = chart_labels.index(today_str)
+    # Lógica de projeção para o gráfico de saldo
+    chart_today_index = -1  # Padrão: -1 (mês passado, sem projeção)
+    data_selecionada = date(ano, mes, 1)
+    hoje_primeiro_dia = hoje.replace(day=1)
 
+    if data_selecionada > hoje_primeiro_dia:
+        chart_today_index = 0
+    elif data_selecionada == hoje_primeiro_dia:
+        today_str = hoje.strftime('%d/%m')
+        if today_str in chart_labels:
+            chart_today_index = chart_labels.index(today_str)
+            
     dados_fluxo_caixa_formatado = [
         {'mes': item['mes'].strftime('%b').capitalize() + '.', 'total_creditos': brl(item['total_creditos']), 'total_debitos': brl(item['total_debitos'])}
         for item in dados_fluxo_caixa_completo['dados_tabela']
