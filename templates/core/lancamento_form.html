@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{% if object %}Editar Lançamento{% else %}Adicionar Novo Lançamento{% endif %}{% endblock %}
 
@@ -16,7 +17,11 @@
             </div>
         {% endif %}
         
-        <form method="post">
+        <form method="post" 
+              id="lancamento-form"
+              data-is-recurrent="{% if object.recorrencia_id %}true{% else %}false{% endif %}"
+              data-future-recurrences-exist="{% if future_recurrences_exist %}true{% else %}false{% endif %}"
+        >
             {% csrf_token %}
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -64,6 +69,7 @@
                 </div>
             </div>
 
+            {% if not object %}
             <div class="mt-6 border-t border-gray-200 pt-6">
                 <h3 class="text-lg font-medium text-gray-900">Recorrência</h3>
                 <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -85,6 +91,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <div class="mt-6 border-t border-gray-200 pt-6">
                 <div class="relative flex items-start">
@@ -99,12 +106,14 @@
             </div>
 
             <div class="mt-8 flex justify-end space-x-4">
-                {% if object.conta_bancaria %}
-                    <a href="{% url 'core:lancamento_list_atual' object.conta_bancaria.pk %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</a>
-                {% else %}
-                    <a href="{% url 'core:home' %}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</a>
+                {% if object %}
+                    <a href="{% url 'core:lancamento_delete' object.pk %}" class="text-red-600 hover:text-red-800 py-2 px-4 rounded-md hover:bg-red-50">
+                        Excluir
+                    </a>
                 {% endif %}
-                <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">{% if object %}Salvar Alterações{% else %}Salvar Lançamento{% endif %}</button>
+                <div class="flex-grow"></div> <!-- Spacer to push next buttons to the right -->
+                <a href="{{ object.get_absolute_url|default_if_none:request.META.HTTP_REFERER|default_if_none:'core:home' }}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</a>
+                <button type="submit" id="btn-save-lancamento" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">{% if object %}Salvar Alterações{% else %}Salvar Lançamento{% endif %}</button>
             </div>
         </form>
     </div>
@@ -152,10 +161,10 @@
 
 {% block scripts %}
 {{ block.super }}
-{% load static %}
 <script id="cartoes-data-json" type="application/json">
     {{ cartoes_data_json|default:'{}' }}
 </script>
 <script src="{% static 'js/pages/lancamento_form.js' %}" defer></script>
 <script src="{% static 'js/pages/lancamento_form_rules.js' %}" defer></script>
+<script src="{% static 'js/pages/lancamento_actions.js' %}" defer></script>
 {% endblock %}

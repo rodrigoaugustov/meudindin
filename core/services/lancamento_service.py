@@ -1,6 +1,6 @@
 # core/services/lancamento_service.py
 from dateutil.relativedelta import relativedelta
-from datetime import datetime
+import uuid
 from ..models import Lancamento
 
 def criar_lancamentos_recorrentes(lancamento_base: Lancamento, periodicidade: str, quantidade: int):
@@ -13,6 +13,11 @@ def criar_lancamentos_recorrentes(lancamento_base: Lancamento, periodicidade: st
     """
     if not lancamento_base or not lancamento_base.pk or quantidade <= 1:
         return
+
+    # Garante que a série de recorrência tenha um ID
+    if lancamento_base.recorrencia_id is None:
+        lancamento_base.recorrencia_id = uuid.uuid4()
+        lancamento_base.save(update_fields=['recorrencia_id'])
 
     lancamentos_para_criar = []
     data_competencia_atual = lancamento_base.data_competencia
@@ -30,14 +35,15 @@ def criar_lancamentos_recorrentes(lancamento_base: Lancamento, periodicidade: st
         delta = delta_map.get(periodicidade, relativedelta(months=1))
         
         data_competencia_atual += delta
-        if data_caixa_atual: data_caixa_atual += delta
+        if data_caixa_atual: data_caixa_atual += delta # Garante que data_caixa_atual é um objeto date
 
         novo_lancamento = Lancamento(
             usuario=lancamento_base.usuario, descricao=lancamento_base.descricao,
             valor=lancamento_base.valor, tipo=lancamento_base.tipo,
             categoria=lancamento_base.categoria, conta_bancaria=lancamento_base.conta_bancaria,
             cartao_credito=lancamento_base.cartao_credito, data_competencia=data_competencia_atual,
-            data_caixa=data_caixa_atual, conciliado=False
+            data_caixa=data_caixa_atual, conciliado=False,
+            recorrencia_id=lancamento_base.recorrencia_id
         )
         lancamentos_para_criar.append(novo_lancamento)
 

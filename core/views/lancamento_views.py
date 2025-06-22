@@ -135,6 +135,14 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
     form_class = LancamentoForm
     template_name = 'core/lancamento_form.html'
 
+    def get_form(self, form_class=None):
+        """Remove os campos de criação de recorrência do formulário de edição."""
+        form = super().get_form(form_class)
+        form.fields.pop('repeticao', None)
+        form.fields.pop('periodicidade', None)
+        form.fields.pop('quantidade_repeticoes', None)
+        return form
+
     def get_queryset(self):
         return Lancamento.objects.filter(usuario=self.request.user)
 
@@ -158,22 +166,51 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
         }
         context['cartoes_data_json'] = mark_safe(json.dumps(cartoes_data))
         context['form_regra_modal'] = RegraCategoriaModalForm(user=self.request.user, initial={'categoria': self.object.categoria})
+        context['is_recorrente'] = False
+
+        if self.object.recorrencia_id:
+            context['is_recorrente'] = True
+            # Verifica se existem lançamentos futuros não conciliados na série
+            context['future_recurrences_exist'] = Lancamento.objects.filter(
+                recorrencia_id=self.object.recorrencia_id,
+                data_caixa__gt=self.object.data_caixa,
+                conciliado=False
+            ).exists()
         return context
 
     def form_valid(self, form):
-        # Regra de conciliação: Lançamentos futuros não podem ser marcados como conciliados.
         data_caixa = form.cleaned_data.get('data_caixa')
         conciliar_automaticamente = form.cleaned_data.get('conciliar_automaticamente', False)
-
         if data_caixa and data_caixa <= date.today():
             form.instance.conciliado = conciliar_automaticamente
         else:
             form.instance.conciliado = False
+
+        update_option = self.request.POST.get('update_option')
+        original_object = self.get_object() # Pega o estado do objeto ANTES da alteração.
+
+        # Salva o formulário, atualizando a instância do objeto atual.
         self.object = form.save()
+
+        # Agora, se for uma atualização recorrente, propaga as alterações.
+        if original_object.recorrencia_id and update_option == 'all':
+            # Define quais campos devem ser propagados para os lançamentos futuros.
+            fields_to_propagate = ['descricao', 'valor', 'tipo', 'categoria', 'conta_bancaria', 'cartao_credito']
+            
+            # Busca os lançamentos futuros usando a data original como referência para evitar erros.
+            future_lancamentos = Lancamento.objects.filter(
+                usuario=self.request.user, recorrencia_id=original_object.recorrencia_id,
+                data_caixa__gt=original_object.data_caixa, conciliado=False
+            )
+            # Prepara os dados para a atualização em massa com os novos valores.
+            update_kwargs = {field: getattr(self.object, field) for field in fields_to_propagate}
+            updated_count = future_lancamentos.update(**update_kwargs)
+            messages.success(self.request, f"Lançamento atualizado. As alterações foram aplicadas a mais {updated_count} lançamento(s) futuro(s).")
+        else:
+            messages.success(self.request, "Lançamento atualizado com sucesso.")
 
         queue = self.request.session.get('edition_queue', [])
         current_pk = self.object.pk
-
         if current_pk in queue:
             queue.remove(current_pk)
             if queue:
@@ -183,7 +220,6 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
             else:
                 self.request.session.pop('edition_queue', None)
                 return redirect(self.get_success_url())
-        
         return redirect(self.get_success_url())
 
     def get_success_url(self):
@@ -199,6 +235,40 @@ class LancamentoDeleteView(LoginRequiredMixin, DeleteView):
     def get_queryset(self):
         return Lancamento.objects.filter(usuario=self.request.user)
     
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        lancamento = self.get_object()
+        context['future_recurrences_exist'] = False
+        if lancamento.recorrencia_id:
+            # Verifica se existem lançamentos futuros não conciliados na série
+            context['future_recurrences_exist'] = Lancamento.objects.filter(
+                recorrencia_id=lancamento.recorrencia_id,
+                data_caixa__gt=lancamento.data_caixa,
+                conciliado=False
+            ).exists()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """ Sobrescreve o método post para lidar com a lógica de exclusão recorrente. """
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        delete_option = request.POST.get('delete_option')
+
+        if self.object.recorrencia_id and delete_option == 'all':
+            # Exclui este e todos os futuros lançamentos não conciliados da série.
+            lancamentos_a_excluir = Lancamento.objects.filter(
+                usuario=request.user, recorrencia_id=self.object.recorrencia_id, 
+                data_caixa__gte=self.object.data_caixa, conciliado=False
+            )
+            count = lancamentos_a_excluir.count()
+            lancamentos_a_excluir.delete()
+            messages.success(request, f"{count} lançamento(s) recorrente(s) foram excluídos.")
+        else:
+            self.object.delete()
+            messages.success(request, "Lançamento excluído com sucesso.")
+
+        return redirect(success_url)
+
     def get_success_url(self):
         if self.object.conta_bancaria:
             self.conta_pk = self.object.conta_bancaria.pk

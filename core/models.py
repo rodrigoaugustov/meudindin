@@ -1,9 +1,11 @@
 # core/models.py
 
+import uuid
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum, Q, Window, F, Case, When, DecimalField, Max
+from django.urls import reverse
 from decimal import Decimal
 
 def get_default_other_category():
@@ -189,6 +191,10 @@ class Lancamento(models.Model):
         db_index=True,          # Essencial para buscas rápidas neste campo
         editable=False          # Este campo não deve ser editado manualmente
     )
+    recorrencia_id = models.UUIDField(
+        null=True, blank=True, editable=False, db_index=True,
+        help_text="ID que agrupa lançamentos de uma mesma recorrência."
+    )
 
     # Relacionamentos (um lançamento pode pertencer a uma categoria, conta ou cartão)
     categoria = models.ForeignKey(
@@ -209,6 +215,12 @@ class Lancamento(models.Model):
     def __str__(self):
         sinal = "-" if self.tipo == self.TipoTransacao.DEBITO else "+"
         return f"{self.data_competencia.strftime('%d/%m/%Y')} - {self.descricao} ({sinal}R$ {self.valor})"
+
+    def get_absolute_url(self):
+        if self.conta_bancaria:
+            return reverse('core:lancamento_list_atual', kwargs={'conta_pk': self.conta_bancaria.pk})
+        # Fallback para lançamentos de cartão de crédito ou outros casos
+        return reverse('core:home')
 
 
 # --- Modelo de Planejamento ---

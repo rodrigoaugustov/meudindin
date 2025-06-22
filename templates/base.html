@@ -120,6 +120,32 @@
 
     </div>
 
+    <!-- ### INÍCIO DO MODAL DE CONFIRMAÇÃO GENÉRICO ### -->
+    <div id="confirmation-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div class="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="text-center">
+                <h3 id="modal-title" class="text-lg leading-6 font-medium text-gray-900">Título da Confirmação</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p id="modal-body" class="text-sm text-gray-500">
+                        Corpo da mensagem de confirmação.
+                    </p>
+                </div>
+                <div class="items-center px-4 py-3 flex flex-col sm:flex-row-reverse gap-3">
+                    <button id="modal-confirm-button" class="w-full sm:w-auto inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Confirmar Ação 1
+                    </button>
+                    <button id="modal-secondary-button" class="w-full sm:w-auto inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Confirmar Ação 2
+                    </button>
+                    <button id="modal-cancel-button" type="button" class="w-full sm:w-auto mt-3 sm:mt-0 inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ### FIM DO MODAL ### -->
+
     <!-- Bloco para scripts JavaScript no final da página -->
     {% block scripts %}
     {% endblock scripts %}
