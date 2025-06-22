@@ -17,7 +17,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from core import services
 
-from ..models import Lancamento, ContaBancaria, CartaoCredito, Categoria
+from ..models import Lancamento, ContaBancaria, CartaoCredito, Categoria, Fatura
 from ..forms import LancamentoForm, ConciliacaoForm, RegraCategoriaModalForm
 
 
@@ -447,3 +447,43 @@ def conciliar_lancamento_view(request, pk):
 
     context = {'form': form, 'lancamento': lancamento}
     return render(request, 'core/conciliar_lancamento.html', context)
+
+@login_required
+def get_faturas_options_view(request):
+    cartao_pk = request.GET.get('cartao_pk')
+    data_compra_str = request.GET.get('data_compra')
+
+    if not cartao_pk or not data_compra_str:
+        return JsonResponse({'error': 'Parâmetros ausentes.'}, status=400)
+
+    try:
+        cartao = get_object_or_404(CartaoCredito, pk=cartao_pk, usuario=request.user)
+        data_compra = datetime.strptime(data_compra_str, '%Y-%m-%d').date()
+    except (ValueError, CartaoCredito.DoesNotExist):
+        return JsonResponse({'error': 'Parâmetros inválidos.'}, status=400)
+
+    # Usa o serviço para encontrar a fatura padrão para a data
+    temp_lancamento = Lancamento(usuario=request.user, cartao_credito=cartao, data_competencia=data_compra)
+    default_fatura = services.get_or_create_fatura_aberta(temp_lancamento)
+
+    # Constrói o queryset para 'fatura': fatura padrão + 2 anteriores + 2 próximas
+    faturas_qs = Fatura.objects.filter(cartao=cartao).order_by('-data_vencimento')
+    all_faturas_ordered = list(faturas_qs)
+    
+    selected_faturas_pks = set()
+    if default_fatura:
+        try:
+            idx = all_faturas_ordered.index(default_fatura)
+            faturas_slice = all_faturas_ordered[max(0, idx - 2):min(len(all_faturas_ordered), idx + 3)]
+            selected_faturas_pks.update(f.pk for f in faturas_slice)
+        except ValueError:
+            pass # Fatura recém-criada pode não estar na lista inicial
+        selected_faturas_pks.add(default_fatura.pk)
+
+    faturas_options = Fatura.objects.filter(pk__in=selected_faturas_pks).order_by('-data_vencimento')
+    faturas_data = [{'pk': f.pk, 'name': f"Fatura Venc. {f.data_vencimento.strftime('%d/%m/%Y')}"} for f in faturas_options]
+
+    return JsonResponse({
+        'default_fatura_pk': default_fatura.pk if default_fatura else None,
+        'faturas': faturas_data
+    })

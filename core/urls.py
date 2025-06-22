@@ -89,6 +89,7 @@ urlpatterns += [
     path('lancamentos/adicionar/', LancamentoCreateView.as_view(), name='lancamento_create_generic'),
     path('lancamentos/conta/<int:conta_pk>/adicionar/', LancamentoCreateView.as_view(), name='lancamento_conta_create'),
     path('lancamentos/cartao/<int:cartao_pk>/adicionar/', LancamentoCreateView.as_view(), name='lancamento_cartao_create'),
+    path('ajax/get-faturas-options/', views.get_faturas_options_view, name='ajax_get_faturas_options'),
     path('lancamentos/<int:pk>/editar/', LancamentoUpdateView.as_view(), name='lancamento_update'),
     path('lancamentos/<int:pk>/excluir/', LancamentoDeleteView.as_view(), name='lancamento_delete'),
     path('lancamentos/bulk-delete/', excluir_lancamentos_em_massa, name='lancamento_bulk_delete'),
