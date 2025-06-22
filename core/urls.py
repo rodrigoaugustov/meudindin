@@ -86,7 +86,9 @@ urlpatterns += [
     path('regras/reordenar/', reordenar_regras_view, name='regras_reordenar'),
     path('regras/criar-via-lancamento/', criar_regra_lancamento_view, name='regra_criar_modal'),
     # Rota para CRUD de lançamento
-    path('lancamentos/adicionar/', LancamentoCreateView.as_view(), name='lancamento_create'),
+    path('lancamentos/adicionar/', LancamentoCreateView.as_view(), name='lancamento_create_generic'),
+    path('lancamentos/conta/<int:conta_pk>/adicionar/', LancamentoCreateView.as_view(), name='lancamento_conta_create'),
+    path('lancamentos/cartao/<int:cartao_pk>/adicionar/', LancamentoCreateView.as_view(), name='lancamento_cartao_create'),
     path('lancamentos/<int:pk>/editar/', LancamentoUpdateView.as_view(), name='lancamento_update'),
     path('lancamentos/<int:pk>/excluir/', LancamentoDeleteView.as_view(), name='lancamento_delete'),
     path('lancamentos/bulk-delete/', excluir_lancamentos_em_massa, name='lancamento_bulk_delete'),

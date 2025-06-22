@@ -31,6 +31,8 @@
             {% if request.GET.next %}
                 <input type="hidden" name="next" value="{{ request.GET.next }}">
             {% endif %}
+            {{ form.conta_bancaria }}
+            {{ form.cartao_credito }}
             {{ form.reabrir_fatura_confirmado }}
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -60,22 +62,26 @@
                 </div>
 
                 <!-- Coluna da Direita -->
-                <div>
-                    <label for="{{ form.data_competencia.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.data_competencia.label }}</label>
-                    {{ form.data_competencia }}
-                </div>
-                <div>
-                    <label for="{{ form.data_caixa.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.data_caixa.label }}</label>
-                    {{ form.data_caixa }}
-                </div>
-                <div>
-                    <label for="{{ form.conta_bancaria.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.conta_bancaria.label }} (se aplicável)</label>
-                    {{ form.conta_bancaria }}
-                </div>
-                <div>
-                    <label for="{{ form.cartao_credito.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.cartao_credito.label }} (se aplicável)</label>
-                    {{ form.cartao_credito }}
-                </div>
+                {% if form_context == 'conta' %}
+                    <div>
+                        <label for="{{ form.data_competencia.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.data_competencia.label }}</label>
+                        {{ form.data_competencia }}
+                    </div>
+                {% elif form_context == 'cartao' %}
+                    <div>
+                        <label for="{{ form.data_competencia.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.data_competencia.label }}</label>
+                        {{ form.data_competencia }}
+                    </div>
+                    <div>
+                        <label for="{{ form.fatura.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.fatura.label }}</label>
+                        {{ form.fatura }}
+                    </div>
+                {% else %} {# Fallback para o formulário genérico #}
+                    <div><label for="{{ form.data_competencia.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.data_competencia.label }}</label>{{ form.data_competencia }}</div>
+                    <div><label for="{{ form.data_caixa.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.data_caixa.label }}</label>{{ form.data_caixa }}</div>
+                    <div><label for="{{ form.conta_bancaria.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.conta_bancaria.label }}</label>{{ form.conta_bancaria }}</div>
+                    <div><label for="{{ form.cartao_credito.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.cartao_credito.label }}</label>{{ form.cartao_credito }}</div>
+                {% endif %}
             </div>
 
             {% if not object %}

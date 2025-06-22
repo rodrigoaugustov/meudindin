@@ -1,14 +1,14 @@
 # core/views/lancamento_views.py
 
 import json
-from datetime import date
+from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum, Q
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.utils.safestring import mark_safe
@@ -29,16 +29,37 @@ class LancamentoCreateView(LoginRequiredMixin, CreateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
+        kwargs['initial'] = kwargs.get('initial', {}) # Garante que initial exista
+        
+        # Passa a conta ou cartão para o formulário, se presente na URL
+        if 'conta_pk' in self.kwargs:
+            kwargs['conta'] = get_object_or_404(ContaBancaria, pk=self.kwargs['conta_pk'], usuario=self.request.user)
+            kwargs['initial']['data_competencia'] = date.today() # Define a data inicial para conta
+        elif 'cartao_pk' in self.kwargs:
+            kwargs['cartao'] = get_object_or_404(CartaoCredito, pk=self.kwargs['cartao_pk'], usuario=self.request.user)
+            kwargs['initial']['data_competencia'] = date.today() # Define a data inicial para cartão
+            
         return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        cartoes = CartaoCredito.objects.filter(usuario=self.request.user)
-        cartoes_data = {
-            c.id: {'fechamento': c.dia_fechamento, 'vencimento': c.dia_vencimento}
-            for c in cartoes
-        }
-        context['cartoes_data_json'] = mark_safe(json.dumps(cartoes_data))
+        
+        # Adiciona o contexto para o template saber qual formulário renderizar
+        if 'conta_pk' in self.kwargs:
+            context['form_context'] = 'conta'
+            context['conta'] = get_object_or_404(ContaBancaria, pk=self.kwargs['conta_pk'], usuario=self.request.user)
+        elif 'cartao_pk' in self.kwargs:
+            context['form_context'] = 'cartao'
+            context['cartao'] = get_object_or_404(CartaoCredito, pk=self.kwargs['cartao_pk'], usuario=self.request.user)
+        else:
+            context['form_context'] = 'generic'
+
+        # Dados dos cartões para a lógica JS (ainda útil para o form genérico)
+        if context['form_context'] != 'conta':
+            cartoes = CartaoCredito.objects.filter(usuario=self.request.user)
+            cartoes_data = {c.id: {'fechamento': c.dia_fechamento, 'vencimento': c.dia_vencimento} for c in cartoes}
+            context['cartoes_data_json'] = mark_safe(json.dumps(cartoes_data))
+
         context['form_regra_modal'] = RegraCategoriaModalForm(user=self.request.user)
         return context
 
@@ -54,6 +75,12 @@ class LancamentoCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.usuario = self.request.user
+
+        # Se o contexto for específico, garante que a FK correta seja salva
+        if 'conta_pk' in self.kwargs:
+            form.instance.conta_bancaria_id = self.kwargs['conta_pk']
+        elif 'cartao_pk' in self.kwargs:
+            form.instance.cartao_credito_id = self.kwargs['cartao_pk']
 
         # Regra de conciliação: Lançamentos futuros não podem ser marcados como conciliados.
         data_caixa = form.cleaned_data.get('data_caixa')

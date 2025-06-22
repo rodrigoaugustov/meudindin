@@ -1,5 +1,6 @@
 # core/services/fatura_service.py
 from datetime import date
+import calendar
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 
@@ -27,9 +28,28 @@ def get_or_create_fatura_aberta(lancamento: Lancamento) -> Fatura:
         mes_vencimento = data_vencimento_fatura.month
         ano_vencimento = data_vencimento_fatura.year
 
-    # 2. Define as datas da fatura
-    data_vencimento = date(ano_vencimento, mes_vencimento, cartao.dia_vencimento)
-    data_fechamento = data_vencimento - relativedelta(days=(data_vencimento.day - cartao.dia_fechamento))
+    # 2. Define as datas da fatura de forma robusta
+    try:
+        data_vencimento = date(ano_vencimento, mes_vencimento, cartao.dia_vencimento)
+    except ValueError:
+        # Se o dia do vencimento não existe no mês (ex: dia 31 em Fev), usa o último dia.
+        _, ultimo_dia_mes = calendar.monthrange(ano_vencimento, mes_vencimento)
+        data_vencimento = date(ano_vencimento, mes_vencimento, ultimo_dia_mes)
+
+    # Calcula a data de fechamento
+    mes_fechamento, ano_fechamento = data_vencimento.month, data_vencimento.year
+    if cartao.dia_fechamento > cartao.dia_vencimento:
+        # Se o dia de fechamento é maior que o de vencimento (ex: fecha dia 25, vence dia 5),
+        # o fechamento ocorre no mês anterior ao do vencimento.
+        data_mes_anterior = data_vencimento - relativedelta(months=1)
+        mes_fechamento, ano_fechamento = data_mes_anterior.month, data_mes_anterior.year
+    
+    try:
+        data_fechamento = date(ano_fechamento, mes_fechamento, cartao.dia_fechamento)
+    except ValueError:
+        # Se o dia de fechamento não existe no mês, usa o último dia.
+        _, ultimo_dia_mes = calendar.monthrange(ano_fechamento, mes_fechamento)
+        data_fechamento = date(ano_fechamento, mes_fechamento, ultimo_dia_mes)
     
     # O mês de referência é sempre o mês de vencimento
     ano_mes_referencia = date(ano_vencimento, mes_vencimento, 1)

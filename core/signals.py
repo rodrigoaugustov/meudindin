@@ -19,10 +19,13 @@ def categorizar_lancamento_automaticamente(sender, instance, **kwargs):
     if is_new or is_default_category:
         aplicar_regras_para_lancamento(instance)
 
-    # Se for um lançamento de cartão (novo ou editado), associa a uma fatura
+    # Se for um lançamento de cartão, associa a uma fatura.
+    # Se a fatura já foi definida pelo formulário (via seleção do usuário), respeita essa escolha.
+    # Caso contrário, determina a fatura padrão.
     if instance.cartao_credito:
-        fatura = get_or_create_fatura_aberta(instance)
-        instance.fatura = fatura
+        if not instance.fatura_id:
+            fatura = get_or_create_fatura_aberta(instance)
+            instance.fatura = fatura
 
 @receiver([post_save, post_delete], sender=Lancamento)
 def atualizar_saldo_conta(sender, instance, **kwargs):

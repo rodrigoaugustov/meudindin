@@ -1,12 +1,13 @@
 # core/forms.py
 
 import os
+from datetime import date
 from django import forms
 from django.db.models import Q
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito, RegraCategoria
+from .models import Fatura, Lancamento, Categoria, ContaBancaria, CartaoCredito, RegraCategoria
 from . import services
 
 class TailwindFormMixin:
@@ -152,6 +153,13 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
         help_text="Número total de parcelas, incluindo a atual."
     )
 
+    # Campo para seleção de fatura
+    fatura = forms.ModelChoiceField(
+        queryset=Fatura.objects.none(),
+        required=False,
+        label="Fatura de Destino",
+        help_text="Selecione a fatura para este lançamento. A fatura padrão é sugerida pela data da compra."
+    )    
     # Campo oculto para controlar o fluxo de reabertura de fatura
     reabrir_fatura_confirmado = forms.BooleanField(required=False, widget=forms.HiddenInput())
 
@@ -160,7 +168,7 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
         model = Lancamento
         fields = [
             'descricao', 'valor', 'tipo', 'data_competencia', 'data_caixa',
-            'categoria', 'conta_bancaria', 'cartao_credito'
+            'categoria', 'conta_bancaria', 'cartao_credito', 'fatura'
         ]
         widgets = {
             'data_competencia': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
@@ -168,16 +176,70 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
             'valor': forms.NumberInput(attrs={'placeholder': '150,75'}),
         }
 
-    def __init__(self, *args, user=None, **kwargs):
+    def __init__(self, *args, user=None, conta=None, cartao=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user # Armazena o usuário para uso em outras partes do form, como o clean().
+        
+        # Lógica para customizar o formulário baseado no contexto
+        if conta:
+            self.fields['conta_bancaria'].widget = forms.HiddenInput()
+            self.fields['conta_bancaria'].initial = conta.pk
+            self.fields['data_competencia'].label = "Data"
+            del self.fields['cartao_credito']
+            del self.fields['data_caixa']
+            del self.fields['fatura'] # Fatura não se aplica a conta corrente
+        elif cartao:
+            self.fields['cartao_credito'].widget = forms.HiddenInput()
+            self.fields['cartao_credito'].initial = cartao.pk
+            self.fields['data_competencia'].label = "Data da Compra"
+            del self.fields['conta_bancaria']
+            del self.fields['data_caixa']
+
+            # Configura o queryset e o valor inicial para o campo 'fatura'
+            initial_fatura = None
+            if self.instance and self.instance.pk and self.instance.fatura:
+                initial_fatura = self.instance.fatura
+            else:
+                # Para novos lançamentos, calcula a fatura padrão com base na data atual ou inicial
+                temp_data_competencia = kwargs.get('initial', {}).get('data_competencia') or date.today()
+                temp_lancamento = Lancamento(
+                    usuario=self.user,
+                    cartao_credito=cartao,
+                    data_competencia=temp_data_competencia
+                )
+                initial_fatura = services.get_or_create_fatura_aberta(temp_lancamento)
+            
+            # Constrói o queryset para 'fatura': fatura padrão + 2 anteriores + 2 próximas
+            faturas_qs = Fatura.objects.filter(cartao=cartao).order_by('-data_vencimento') # Base queryset
+            all_faturas_ordered = list(faturas_qs)
+            
+            selected_faturas_pks = set()
+            if initial_fatura:
+                try:
+                    # Encontra o índice da fatura inicial na lista ordenada
+                    idx = all_faturas_ordered.index(initial_fatura)
+                    # Pega uma "fatia" de faturas ao redor da inicial
+                    faturas_slice = all_faturas_ordered[max(0, idx - 2):min(len(all_faturas_ordered), idx + 3)]
+                    # Adiciona os PKs da fatia ao nosso conjunto
+                    selected_faturas_pks.update(f.pk for f in faturas_slice)
+                except ValueError:
+                    # A fatura inicial pode ter sido recém-criada e não estar na lista, o que é ok.
+                    pass
+                selected_faturas_pks.add(initial_fatura.pk) # Garante que a fatura inicial esteja sempre presente
+            
+            self.fields['fatura'].queryset = Fatura.objects.filter(pk__in=selected_faturas_pks).order_by('-data_vencimento')
+            self.fields['fatura'].initial = initial_fatura.pk if initial_fatura else None
+            self.fields['fatura'].empty_label = "--- Selecione uma fatura ---"
+        
         if user:
             # Filtra os querysets dos campos ForeignKey
             self.fields['categoria'].queryset = Categoria.objects.filter(
                 Q(usuario=user) | Q(usuario__isnull=True)
             ).order_by('nome')
-            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(usuario=user)
-            self.fields['cartao_credito'].queryset = CartaoCredito.objects.filter(usuario=user)
+            if 'conta_bancaria' in self.fields:
+                self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(usuario=user)
+            if 'cartao_credito' in self.fields:
+                self.fields['cartao_credito'].queryset = CartaoCredito.objects.filter(usuario=user)
             
     def clean(self):
         """
@@ -189,36 +251,48 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
         cartao_credito = cleaned_data.get("cartao_credito")
         data_competencia = cleaned_data.get("data_competencia")
 
-        if conta_bancaria and cartao_credito:
+        # A validação de mútua exclusividade não é mais necessária da mesma forma,
+        # pois o formulário agora remove um dos campos.
+        # Mantemos a validação para o caso genérico.
+        if conta_bancaria and cartao_credito and not (self.fields['conta_bancaria'].is_hidden or self.fields['cartao_credito'].is_hidden):
             # Se ambos os campos foram preenchidos, levanta um erro de validação
             raise forms.ValidationError(
                 "Um lançamento não pode ser associado a uma conta e a um cartão de crédito ao mesmo tempo. Por favor, escolha apenas um."
             )
         
-        if not conta_bancaria and not cartao_credito:
+        if not conta_bancaria and not cartao_credito and not (self.fields['conta_bancaria'].is_hidden or self.fields['cartao_credito'].is_hidden):
             # Garante que pelo menos um dos dois seja preenchido
             raise forms.ValidationError(
                 "Um lançamento deve ser associado a uma conta bancária ou a um cartão de crédito."
             )
+        
+        if conta_bancaria and data_competencia:
+            cleaned_data['data_caixa'] = data_competencia
 
-        # Validação para não permitir lançamentos em faturas fechadas
+        # Validação e definição de data_caixa para lançamentos de cartão
         if cartao_credito and data_competencia and self.user:
-            # Cria uma instância temporária de Lancamento para usar a lógica de serviço existente
-            temp_lancamento = Lancamento(
-                usuario=self.user,
-                cartao_credito=cartao_credito,
-                data_competencia=data_competencia
-            )
-            # Este serviço encontra a fatura correta para a data da compra
-            fatura = services.get_or_create_fatura_aberta(temp_lancamento)
+            selected_fatura = cleaned_data.get('fatura')
             
-            is_new = self.instance.pk is None
+            if selected_fatura:
+                target_fatura = selected_fatura
+            else:
+                # Se nenhuma fatura foi explicitamente selecionada, determina a fatura padrão
+                temp_lancamento = Lancamento(
+                    usuario=self.user,
+                    cartao_credito=cartao_credito,
+                    data_competencia=data_competencia
+                )
+                target_fatura = services.get_or_create_fatura_aberta(temp_lancamento)
             
-            if fatura.status != 'ABERTA' and (is_new or self.instance.fatura != fatura):
+            # Define data_caixa com base na data de vencimento da fatura alvo
+            cleaned_data['data_caixa'] = target_fatura.data_vencimento
+
+            # Agora, valida o status da fatura alvo
+            if target_fatura.status != 'ABERTA':
                 # Fatura está fechada. Verifica se o usuário já confirmou a reabertura.
                 if cleaned_data.get('reabrir_fatura_confirmado'):
                     # Usuário confirmou no modal. Tenta reabrir a fatura.
-                    sucesso = services.reabrir_fatura(fatura)
+                    sucesso = services.reabrir_fatura(target_fatura)
                     if not sucesso:
                         # A reabertura falhou (ex: pagamento já conciliado). Gera um erro normal.
                         raise forms.ValidationError("Não foi possível reabrir a fatura, pois o pagamento já foi conciliado. Cancele a conciliação do pagamento para prosseguir.")
@@ -229,8 +303,8 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
                         'A fatura está fechada.', # Mensagem genérica, o JS usará os parâmetros.
                         code='fatura_fechada',
                         params={
-                            'vencimento': fatura.data_vencimento.strftime('%d/%m/%Y'),
-                            'pk': fatura.pk
+                            'vencimento': target_fatura.data_vencimento.strftime('%d/%m/%Y'),
+                            'pk': target_fatura.pk
                         }
                     )
 
