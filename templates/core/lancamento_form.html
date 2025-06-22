@@ -23,6 +23,9 @@
               data-future-recurrences-exist="{% if future_recurrences_exist %}true{% else %}false{% endif %}"
         >
             {% csrf_token %}
+            {% if request.GET.next %}
+                <input type="hidden" name="next" value="{{ request.GET.next }}">
+            {% endif %}
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                 <!-- Coluna da Esquerda -->
@@ -112,7 +115,7 @@
                     </a>
                 {% endif %}
                 <div class="flex-grow"></div> <!-- Spacer to push next buttons to the right -->
-                <a href="{{ object.get_absolute_url|default_if_none:request.META.HTTP_REFERER|default_if_none:'core:home' }}" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</a>
+                <button type="button" onclick="window.history.back()" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300">Cancelar</button>
                 <button type="submit" id="btn-save-lancamento" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">{% if object %}Salvar Alterações{% else %}Salvar Lançamento{% endif %}</button>
             </div>
         </form>

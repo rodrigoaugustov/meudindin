@@ -195,7 +195,7 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
 
         return cleaned_data
 
-class UnifiedImportForm(forms.Form):
+class UnifiedImportForm(TailwindFormMixin, forms.Form):
     IMPORT_CHOICES = [
         ('csv', 'CSV (Planilha)'),
         ('ofx', 'OFX (Extrato Bancário)'),
@@ -203,24 +203,23 @@ class UnifiedImportForm(forms.Form):
 
     import_type = forms.ChoiceField(
         choices=IMPORT_CHOICES,
-        label="Tipo de Importação",
-        widget=forms.Select(attrs={'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'})
+        label="Tipo de Importação"
     )
     conta_bancaria = forms.ModelChoiceField(
         queryset=ContaBancaria.objects.none(),
         label="Importar para a Conta",
-        empty_label="--- Selecione a Conta ---",
-        widget=forms.Select(attrs={'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'})
+        empty_label="--- Selecione a Conta ---"
     )
     import_file = forms.FileField(
-        label="Selecione o Arquivo",
-        widget=forms.FileInput(attrs={'class': 'mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'})
+        label="Selecione o Arquivo"
     )
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         if user:
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(usuario=user)
+        # O mixin aplica uma classe padrão, mas podemos sobrescrevê-la para campos específicos.
+        self.fields['import_file'].widget.attrs['class'] = 'mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
 
     def clean(self):
         cleaned_data = super().clean()
@@ -244,6 +243,9 @@ class UnifiedImportForm(forms.Form):
         return cleaned_data
 
 class ConciliacaoForm(TailwindFormMixin, forms.Form):
-    # Usamos CharField para data para usar o widget de texto com tipo 'date'
-    data_caixa = forms.CharField(label="Data Efetiva", widget=forms.TextInput(attrs={'type': 'date', 'class': 'input-tailwind'}))
-    valor = forms.DecimalField(label="Valor Efetivo", widget=forms.NumberInput(attrs={'class': 'input-tailwind'}))
+    # Usando DateField com o widget correto para melhor validação e consistência.
+    data_caixa = forms.DateField(
+        label="Data Efetiva",
+        widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')
+    )
+    valor = forms.DecimalField(label="Valor Efetivo")

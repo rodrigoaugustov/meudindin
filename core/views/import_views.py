@@ -6,9 +6,11 @@ from datetime import date, datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models.signals import post_save
 
 from ..models import Lancamento, ContaBancaria
 from ..forms import UnifiedImportForm, LancamentoForm, RegraCategoriaModalForm
+from ..signals import atualizar_saldo_conta
 from .. import services
 
 
@@ -60,6 +62,9 @@ def importar_unificado_view(request):
 
 @login_required
 def confirmar_importacao_view(request):
+    """
+    Processa e salva os lançamentos pré-aprovados pelo usuário.
+    """
     if request.method == 'POST':
         try:
             lancamentos_json = request.POST.get('lancamentos_json')
@@ -79,47 +84,55 @@ def confirmar_importacao_view(request):
 
         conta = get_object_or_404(ContaBancaria, pk=conta_pk, usuario=request.user)
         
-        total_criados = 0
-        for data in lancamentos_data:
-            # Validação básica dos dados recebidos (chaves em camelCase vindas do dataset JS)
-            if not all(k in data for k in ['descricao', 'valor', 'tipo', 'dataCompetencia', 'dataCaixa', 'categoriaId', 'importHash']):
-                continue
-
-            data_caixa_str = data['dataCaixa']
-            data_caixa_obj = datetime.fromisoformat(data_caixa_str).date()
-
-            data_competencia_str = data['dataCompetencia']
-            data_competencia_obj = datetime.fromisoformat(data_competencia_str).date()
-
-            lancamento_base = Lancamento(
-                usuario=request.user,
-                conta_bancaria=conta,
-                data_competencia=data_competencia_obj,
-                data_caixa=data_caixa_obj,
-                descricao=data['descricao'],
-                valor=Decimal(data['valor']),
-                tipo='C' if data['tipo'] == 'Crédito' else 'D',
-                categoria_id=int(data['categoriaId']),
-                import_hash=data['importHash'],
-                numero_documento=data.get('numeroDocumento')
-            )
-            # Regra de conciliação: Lançamentos importados só são conciliados se a data não for futura.
-            lancamento_base.conciliado = data_caixa_obj <= date.today()
-
-            lancamento_base.save()
-            total_criados += 1
-
-            if data.get('repeticao') == 'RECORRENTE':
-                try:
-                    quantidade = int(data.get('quantidadeRepeticoes'))
-                    periodicidade = data.get('periodicidade')
-                    if quantidade > 1 and periodicidade:
-                        services.criar_lancamentos_recorrentes(lancamento_base, periodicidade, quantidade)
-                        total_criados += (quantidade - 1)
-                except (ValueError, TypeError, KeyError):
+        # Desconecta o sinal para evitar recálculos de saldo a cada `save()`
+        post_save.disconnect(atualizar_saldo_conta, sender=Lancamento)
+        
+        try:
+            total_criados = 0
+            for data in lancamentos_data:
+                # Validação básica dos dados recebidos (chaves em camelCase vindas do dataset JS)
+                if not all(k in data for k in ['descricao', 'valor', 'tipo', 'dataCompetencia', 'dataCaixa', 'categoriaId', 'importHash']):
                     continue
+    
+                data_caixa_str = data['dataCaixa']
+                data_caixa_obj = datetime.fromisoformat(data_caixa_str).date()
+    
+                data_competencia_str = data['dataCompetencia']
+                data_competencia_obj = datetime.fromisoformat(data_competencia_str).date()
+    
+                lancamento_base = Lancamento(
+                    usuario=request.user,
+                    conta_bancaria=conta,
+                    data_competencia=data_competencia_obj,
+                    data_caixa=data_caixa_obj,
+                    descricao=data['descricao'],
+                    valor=Decimal(data['valor']),
+                    tipo='C' if data['tipo'] == 'Crédito' else 'D',
+                    categoria_id=int(data['categoriaId']),
+                    import_hash=data['importHash'],
+                    numero_documento=data.get('numeroDocumento')
+                )
+                # Regra de conciliação: Lançamentos importados só são conciliados se a data não for futura.
+                lancamento_base.conciliado = data_caixa_obj <= date.today()
+    
+                lancamento_base.save()
+                total_criados += 1
+    
+                if data.get('repeticao') == 'RECORRENTE':
+                    try:
+                        quantidade = int(data.get('quantidadeRepeticoes'))
+                        periodicidade = data.get('periodicidade')
+                        if quantidade > 1 and periodicidade:
+                            services.criar_lancamentos_recorrentes(lancamento_base, periodicidade, quantidade)
+                            total_criados += (quantidade - 1)
+                    except (ValueError, TypeError, KeyError):
+                        continue
+        finally:
+            # Reconecta o sinal, garantindo que ele seja reativado mesmo se ocorrer um erro.
+            post_save.connect(atualizar_saldo_conta, sender=Lancamento)
 
         if total_criados > 0:
+            # Agora, recalcula o saldo da conta uma única vez.
             services.recalcular_saldo_conta(conta)
             messages.success(request, f"{total_criados} lançamentos foram importados com sucesso!")
         else:

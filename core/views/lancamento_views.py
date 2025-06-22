@@ -25,7 +25,6 @@ class LancamentoCreateView(LoginRequiredMixin, CreateView):
     model = Lancamento
     form_class = LancamentoForm
     template_name = 'core/lancamento_form.html'
-    success_url = reverse_lazy('core:home')
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -42,6 +41,16 @@ class LancamentoCreateView(LoginRequiredMixin, CreateView):
         context['cartoes_data_json'] = mark_safe(json.dumps(cartoes_data))
         context['form_regra_modal'] = RegraCategoriaModalForm(user=self.request.user)
         return context
+
+    def get_success_url(self):
+        """
+        Retorna a URL de sucesso. Prioriza o parâmetro 'next' na URL.
+        Se não houver 'next', redireciona para a página inicial como fallback.
+        """
+        next_url = self.request.POST.get('next') or self.request.GET.get('next')
+        if next_url:
+            return next_url
+        return reverse_lazy('core:home')
 
     def form_valid(self, form):
         form.instance.usuario = self.request.user
