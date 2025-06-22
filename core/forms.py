@@ -3,8 +3,11 @@
 import os
 from django import forms
 from django.db.models import Q
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .models import Lancamento, Categoria, ContaBancaria, CartaoCredito, RegraCategoria
+from . import services
 
 class TailwindFormMixin:
     """Mixin para aplicar classes CSS do Tailwind a todos os campos de um formulário."""
@@ -71,13 +74,20 @@ class ContaBancariaForm(TailwindFormMixin, forms.ModelForm):
 class CartaoCreditoForm(TailwindFormMixin, forms.ModelForm):
     class Meta:
         model = CartaoCredito
-        fields = ['nome_cartao', 'limite', 'dia_fechamento', 'dia_vencimento']
+        fields = ['nome_cartao', 'limite', 'dia_fechamento', 'dia_vencimento', 'conta_pagamento']
         labels = {
             'nome_cartao': 'Nome do Cartão (Apelido)',
             'limite': 'Limite do Cartão (R$)',
             'dia_fechamento': 'Dia do Fechamento da Fatura',
             'dia_vencimento': 'Dia do Vencimento da Fatura',
+            'conta_pagamento': 'Conta para Pagamento da Fatura',
         }
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user:
+            self.fields['conta_pagamento'].queryset = ContaBancaria.objects.filter(usuario=user)
+            self.fields['conta_pagamento'].empty_label = "--- Selecione uma conta ---"
 
 class CategoriaForm(TailwindFormMixin, forms.ModelForm):
     class Meta:
@@ -141,6 +151,11 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
         required=False, label="Quantidade de Repetições", min_value=2, initial=2,
         help_text="Número total de parcelas, incluindo a atual."
     )
+
+    # Campo oculto para controlar o fluxo de reabertura de fatura
+    reabrir_fatura_confirmado = forms.BooleanField(required=False, widget=forms.HiddenInput())
+
+
     class Meta:
         model = Lancamento
         fields = [
@@ -155,6 +170,7 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.user = user # Armazena o usuário para uso em outras partes do form, como o clean().
         if user:
             # Filtra os querysets dos campos ForeignKey
             self.fields['categoria'].queryset = Categoria.objects.filter(
@@ -171,6 +187,7 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
         cleaned_data = super().clean()
         conta_bancaria = cleaned_data.get("conta_bancaria")
         cartao_credito = cleaned_data.get("cartao_credito")
+        data_competencia = cleaned_data.get("data_competencia")
 
         if conta_bancaria and cartao_credito:
             # Se ambos os campos foram preenchidos, levanta um erro de validação
@@ -183,6 +200,39 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
             raise forms.ValidationError(
                 "Um lançamento deve ser associado a uma conta bancária ou a um cartão de crédito."
             )
+
+        # Validação para não permitir lançamentos em faturas fechadas
+        if cartao_credito and data_competencia and self.user:
+            # Cria uma instância temporária de Lancamento para usar a lógica de serviço existente
+            temp_lancamento = Lancamento(
+                usuario=self.user,
+                cartao_credito=cartao_credito,
+                data_competencia=data_competencia
+            )
+            # Este serviço encontra a fatura correta para a data da compra
+            fatura = services.get_or_create_fatura_aberta(temp_lancamento)
+            
+            is_new = self.instance.pk is None
+            
+            if fatura.status != 'ABERTA' and (is_new or self.instance.fatura != fatura):
+                # Fatura está fechada. Verifica se o usuário já confirmou a reabertura.
+                if cleaned_data.get('reabrir_fatura_confirmado'):
+                    # Usuário confirmou no modal. Tenta reabrir a fatura.
+                    sucesso = services.reabrir_fatura(fatura)
+                    if not sucesso:
+                        # A reabertura falhou (ex: pagamento já conciliado). Gera um erro normal.
+                        raise forms.ValidationError("Não foi possível reabrir a fatura, pois o pagamento já foi conciliado. Cancele a conciliação do pagamento para prosseguir.")
+                    # Se a reabertura foi bem-sucedida, a validação passa e o lançamento será salvo.
+                else:
+                    # Primeira tentativa. Gera um erro especial para ser capturado pelo JavaScript.
+                    raise forms.ValidationError(
+                        'A fatura está fechada.', # Mensagem genérica, o JS usará os parâmetros.
+                        code='fatura_fechada',
+                        params={
+                            'vencimento': fatura.data_vencimento.strftime('%d/%m/%Y'),
+                            'pk': fatura.pk
+                        }
+                    )
 
         repeticao = cleaned_data.get('repeticao')
         if repeticao == 'RECORRENTE':

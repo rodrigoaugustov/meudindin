@@ -68,6 +68,12 @@ class CartaoCredito(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(31)],
         help_text="Dia do mês para pagamento da fatura."
     )
+    conta_pagamento = models.ForeignKey(
+        ContaBancaria,
+        on_delete=models.PROTECT,
+        related_name='cartoes_pagos_por_esta_conta',
+        help_text="Conta bancária usada para pagar a fatura deste cartão."
+    )
 
     class Meta:
         verbose_name = "Cartão de Crédito"
@@ -75,6 +81,40 @@ class CartaoCredito(models.Model):
 
     def __str__(self):
         return f"{self.nome_cartao} - {self.usuario.username}"
+
+
+class Fatura(models.Model):
+    """Representa a fatura de um cartão de crédito para um ciclo específico."""
+    class StatusFatura(models.TextChoices):
+        ABERTA = 'ABERTA', 'Aberta'
+        FECHADA = 'FECHADA', 'Fechada'
+        PAGA = 'PAGA', 'Paga'
+
+    cartao = models.ForeignKey(CartaoCredito, on_delete=models.CASCADE, related_name='faturas')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='faturas')
+    
+    ano_mes_referencia = models.DateField(help_text="Primeiro dia do mês de referência da fatura.")
+    data_fechamento = models.DateField()
+    data_vencimento = models.DateField()
+    
+    valor_total = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+    valor_pago = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, null=True, blank=True)
+    
+    status = models.CharField(max_length=10, choices=StatusFatura.choices, default=StatusFatura.ABERTA)
+    
+    # Lançamento que representa o pagamento desta fatura na conta bancária.
+    lancamento_pagamento = models.OneToOneField(
+        'Lancamento', on_delete=models.SET_NULL, null=True, blank=True, related_name='fatura_paga'
+    )
+
+    class Meta:
+        verbose_name = "Fatura"
+        verbose_name_plural = "Faturas"
+        unique_together = [['cartao', 'ano_mes_referencia']]
+        ordering = ['-data_vencimento']
+
+    def __str__(self):
+        return f"Fatura {self.cartao.nome_cartao} - Venc: {self.data_vencimento.strftime('%d/%m/%Y')}"
 
 
 class Categoria(models.Model):
@@ -205,6 +245,7 @@ class Lancamento(models.Model):
     )
     conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.CASCADE, null=True, blank=True, related_name='lancamentos')
     cartao_credito = models.ForeignKey(CartaoCredito, on_delete=models.CASCADE, null=True, blank=True)
+    fatura = models.ForeignKey(Fatura, on_delete=models.CASCADE, null=True, blank=True, related_name='lancamentos')
     objects = LancamentoQuerySet.as_manager()
 
     class Meta:

@@ -83,4 +83,53 @@ document.addEventListener('DOMContentLoaded', function() {
         repeticaoEl.addEventListener('change', toggleRecorrencia);
         toggleRecorrencia();
     }
+
+    // --- Nova lógica para o modal de reabertura de fatura ---
+    const faturaFechadaError = document.getElementById('fatura-fechada-error');
+    if (faturaFechadaError) {
+        const vencimento = faturaFechadaError.dataset.vencimento;
+        const faturaPk = faturaFechadaError.dataset.pk;
+        
+        // Usa o modal de confirmação genérico de base.html
+        const modal = document.getElementById('confirmation-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const confirmBtn = document.getElementById('modal-confirm-button');
+        const secondaryBtn = document.getElementById('modal-secondary-button');
+        const cancelBtn = document.getElementById('modal-cancel-button');
+
+        if (modal) {
+            modalTitle.textContent = 'Fatura Fechada';
+            modalBody.textContent = `A fatura com vencimento em ${vencimento} já está fechada. Deseja reabrir a fatura para prosseguir com o lançamento?`;
+            
+            confirmBtn.textContent = 'Sim, reabrir e salvar';
+            secondaryBtn.textContent = 'Não, voltar';
+            
+            // Esconde o botão de cancelar original e mostra o secundário como "Não"
+            cancelBtn.classList.add('hidden');
+            secondaryBtn.classList.remove('hidden');
+
+            const closeModal = () => {
+                modal.classList.add('hidden');
+                // Restaura o estado padrão do modal para que outros scripts possam usá-lo
+                cancelBtn.classList.remove('hidden');
+                secondaryBtn.classList.add('hidden');
+                confirmBtn.onclick = null;
+                secondaryBtn.onclick = null;
+            };
+
+            secondaryBtn.onclick = closeModal; // O botão "Não" apenas fecha o modal.
+
+            confirmBtn.onclick = () => {
+                // Adiciona a confirmação ao formulário e o reenvia.
+                const form = document.getElementById('lancamento-form');
+                const hiddenInput = document.getElementById('id_reabrir_fatura_confirmado');
+                if (hiddenInput) {
+                    hiddenInput.value = 'true';
+                }
+                form.submit();
+            };
+            modal.classList.remove('hidden');
+        }
+    }
 });

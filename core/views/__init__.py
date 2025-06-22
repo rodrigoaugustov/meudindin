@@ -12,3 +12,4 @@ from .lancamento_views import *
 from .import_views import *
 from .regra_views import *
 from .report_views import *
+from .fatura_views import * # Já estava aqui, apenas confirmando

@@ -36,6 +36,9 @@ from .views import (
     reordenar_regras_view,
     criar_regra_lancamento_view,
 )
+from .views import (
+    FaturaListView, FaturaDetailView, fechar_fatura_view, reabrir_fatura_view
+)
 from .views import fluxo_caixa_view
 
 app_name = 'core'
@@ -99,6 +102,13 @@ urlpatterns += [
     # Rota Extratos
     path('conta/<int:conta_pk>/extrato/', LancamentoListView.as_view(), name='lancamento_list_atual'),
     path('conta/<int:conta_pk>/extrato/<int:ano>/<int:mes>/', LancamentoListView.as_view(), name='lancamento_list'),
+    
+    # Rotas para Faturas de Cartão de Crédito (agora "Cartões")
+    path('cartoes/<int:cartao_pk>/faturas/', FaturaListView.as_view(), name='fatura_list_atual'),
+    path('cartoes/<int:cartao_pk>/faturas/<int:ano>/<int:mes>/', FaturaListView.as_view(), name='fatura_list'),
+    path('faturas/<int:pk>/', FaturaDetailView.as_view(), name='fatura_detail'),
+    path('faturas/<int:pk>/fechar/', fechar_fatura_view, name='fatura_fechar'),
+    path('faturas/<int:pk>/reabrir/', reabrir_fatura_view, name='fatura_reabrir'),
 
     # Rotas para Relatórios
     path('relatorios/fluxo-caixa/', fluxo_caixa_view, name='relatorio_fluxo_caixa_atual'),

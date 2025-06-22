@@ -1,4 +1,4 @@
-from .models import ContaBancaria
+from .models import ContaBancaria, CartaoCredito
 
 def menu_context(request):
     """
@@ -15,7 +15,12 @@ def menu_context(request):
         usuario=request.user
     ).order_by('-saldo_calculado').first()
     
+    primeiro_cartao = CartaoCredito.objects.filter(
+        usuario=request.user
+    ).order_by('nome_cartao').first()
+
     # Retorna o dicionário que será adicionado ao contexto global
     return {
-        'conta_maior_saldo': conta_maior_saldo
+        'conta_maior_saldo': conta_maior_saldo,
+        'primeiro_cartao': primeiro_cartao,
     }

@@ -40,7 +40,13 @@
                                 <!-- Se não tem contas, o link leva para a página de criação de contas -->
                                 <a href="{% url 'core:conta_list' %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Lançamentos</a>
                             {% endif %}
-                            <!-- ### FIM DA LÓGICA DO LINK DE LANÇAMENTOS ### -->
+                            {% if primeiro_cartao %}
+                                <a href="{% url 'core:fatura_list_atual' primeiro_cartao.pk %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Cartões</a>
+                            {% else %}
+                                <!-- Se não tem cartões, o link leva para a página de criação de cartões -->
+                                <a href="{% url 'core:cartao_list' %}" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Cartões</a>
+                            {% endif %}
+                            <!-- ### FIM DA LÓGICA DO LINK DE CARTÕES ### -->
                         <a href="#" class="text-gray-500 hover:bg-gray-200 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Orçamento</a>
                         
                         <!-- Dropdown de Relatórios -->

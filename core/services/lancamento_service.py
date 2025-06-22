@@ -2,6 +2,7 @@
 from dateutil.relativedelta import relativedelta
 import uuid
 from ..models import Lancamento
+from .. import services
 
 def criar_lancamentos_recorrentes(lancamento_base: Lancamento, periodicidade: str, quantidade: int):
     """
@@ -19,7 +20,7 @@ def criar_lancamentos_recorrentes(lancamento_base: Lancamento, periodicidade: st
         lancamento_base.recorrencia_id = uuid.uuid4()
         lancamento_base.save(update_fields=['recorrencia_id'])
 
-    lancamentos_para_criar = []
+    faturas_afetadas = set()
     data_competencia_atual = lancamento_base.data_competencia
     data_caixa_atual = lancamento_base.data_caixa
 
@@ -45,7 +46,17 @@ def criar_lancamentos_recorrentes(lancamento_base: Lancamento, periodicidade: st
             data_caixa=data_caixa_atual, conciliado=False,
             recorrencia_id=lancamento_base.recorrencia_id
         )
-        lancamentos_para_criar.append(novo_lancamento)
+        
+        # Se for um lançamento de cartão, precisamos associar a fatura correta.
+        # Não podemos usar bulk_create aqui, pois ele não dispara os sinais pre_save.
+        if novo_lancamento.cartao_credito:
+            fatura = services.get_or_create_fatura_aberta(novo_lancamento)
+            novo_lancamento.fatura = fatura
+            faturas_afetadas.add(fatura)
+        
+        novo_lancamento.save()
 
-    if lancamentos_para_criar:
-        Lancamento.objects.bulk_create(lancamentos_para_criar)
+    # Após criar todos os lançamentos, recalcula o valor das faturas afetadas.
+    if faturas_afetadas:
+        for fatura in faturas_afetadas:
+            services.recalcular_valor_fatura(fatura)
