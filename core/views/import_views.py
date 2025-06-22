@@ -2,6 +2,7 @@
 
 import json
 from decimal import Decimal
+from datetime import date, datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
@@ -78,30 +79,49 @@ def confirmar_importacao_view(request):
 
         conta = get_object_or_404(ContaBancaria, pk=conta_pk, usuario=request.user)
         
-        lancamentos_para_criar = []
+        total_criados = 0
         for data in lancamentos_data:
             # Validação básica dos dados recebidos (chaves em camelCase vindas do dataset JS)
             if not all(k in data for k in ['descricao', 'valor', 'tipo', 'dataCompetencia', 'dataCaixa', 'categoriaId', 'importHash']):
                 continue
 
-            lancamentos_para_criar.append(Lancamento(
+            data_caixa_str = data['dataCaixa']
+            data_caixa_obj = datetime.fromisoformat(data_caixa_str).date()
+
+            data_competencia_str = data['dataCompetencia']
+            data_competencia_obj = datetime.fromisoformat(data_competencia_str).date()
+
+            lancamento_base = Lancamento(
                 usuario=request.user,
                 conta_bancaria=conta,
-                data_competencia=data['dataCompetencia'],
-                data_caixa=data['dataCaixa'],
+                data_competencia=data_competencia_obj,
+                data_caixa=data_caixa_obj,
                 descricao=data['descricao'],
                 valor=Decimal(data['valor']),
                 tipo='C' if data['tipo'] == 'Crédito' else 'D',
                 categoria_id=int(data['categoriaId']),
-                conciliado=True,
                 import_hash=data['importHash'],
                 numero_documento=data.get('numeroDocumento')
-            ))
+            )
+            # Regra de conciliação: Lançamentos importados só são conciliados se a data não for futura.
+            lancamento_base.conciliado = data_caixa_obj <= date.today()
 
-        if lancamentos_para_criar:
-            Lancamento.objects.bulk_create(lancamentos_para_criar)
+            lancamento_base.save()
+            total_criados += 1
+
+            if data.get('repeticao') == 'RECORRENTE':
+                try:
+                    quantidade = int(data.get('quantidadeRepeticoes'))
+                    periodicidade = data.get('periodicidade')
+                    if quantidade > 1 and periodicidade:
+                        services.criar_lancamentos_recorrentes(lancamento_base, periodicidade, quantidade)
+                        total_criados += (quantidade - 1)
+                except (ValueError, TypeError, KeyError):
+                    continue
+
+        if total_criados > 0:
             services.recalcular_saldo_conta(conta)
-            messages.success(request, f"{len(lancamentos_para_criar)} lançamentos foram importados com sucesso!")
+            messages.success(request, f"{total_criados} lançamentos foram importados com sucesso!")
         else:
             messages.warning(request, "Nenhum lançamento foi importado.")
 

@@ -64,4 +64,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Roda a função uma vez no carregamento da página para o caso de edição
     calcularDataCaixa();
+
+    // --- Nova lógica para recorrência ---
+    const repeticaoEl = document.getElementById('id_repeticao');
+    const opcoesRecorrenciaEl = document.getElementById('opcoes-recorrencia');
+
+    function toggleRecorrencia() {
+        if (repeticaoEl && opcoesRecorrenciaEl) {
+            if (repeticaoEl.value === 'RECORRENTE') {
+                opcoesRecorrenciaEl.classList.remove('hidden');
+            } else {
+                opcoesRecorrenciaEl.classList.add('hidden');
+            }
+        }
+    }
+
+    if (repeticaoEl) {
+        repeticaoEl.addEventListener('change', toggleRecorrencia);
+        toggleRecorrencia();
+    }
 });

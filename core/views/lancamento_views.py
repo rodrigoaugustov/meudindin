@@ -15,7 +15,9 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
-from ..models import Lancamento, ContaBancaria, CartaoCredito
+from core import services
+
+from ..models import Lancamento, ContaBancaria, CartaoCredito, Categoria
 from ..forms import LancamentoForm, ConciliacaoForm, RegraCategoriaModalForm
 
 
@@ -43,9 +45,29 @@ class LancamentoCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.usuario = self.request.user
-        conciliar = form.cleaned_data.get('conciliar_automaticamente', False)
-        form.instance.conciliado = conciliar
-        return super().form_valid(form)
+
+        # Regra de conciliação: Lançamentos futuros não podem ser marcados como conciliados.
+        data_caixa = form.cleaned_data.get('data_caixa')
+        conciliar_automaticamente = form.cleaned_data.get('conciliar_automaticamente', False)
+        
+        if data_caixa and data_caixa <= date.today():
+            form.instance.conciliado = conciliar_automaticamente
+        else:
+            form.instance.conciliado = False
+        
+        self.object = form.save()
+
+        repeticao = form.cleaned_data.get('repeticao')
+        if repeticao == 'RECORRENTE':
+            periodicidade = form.cleaned_data.get('periodicidade')
+            quantidade = form.cleaned_data.get('quantidade_repeticoes')
+            if periodicidade and quantidade:
+                services.criar_lancamentos_recorrentes(self.object, periodicidade, quantidade)
+                messages.success(self.request, f"{quantidade} lançamentos recorrentes foram criados com sucesso!")
+        else:
+            messages.success(self.request, "Lançamento criado com sucesso!")
+
+        return redirect(self.get_success_url())
 
 class LancamentoListView(LoginRequiredMixin, ListView):
     model = Lancamento
@@ -139,8 +161,14 @@ class LancamentoUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
-        conciliar = form.cleaned_data.get('conciliar_automaticamente', False)
-        form.instance.conciliado = conciliar
+        # Regra de conciliação: Lançamentos futuros não podem ser marcados como conciliados.
+        data_caixa = form.cleaned_data.get('data_caixa')
+        conciliar_automaticamente = form.cleaned_data.get('conciliar_automaticamente', False)
+
+        if data_caixa and data_caixa <= date.today():
+            form.instance.conciliado = conciliar_automaticamente
+        else:
+            form.instance.conciliado = False
         self.object = form.save()
 
         queue = self.request.session.get('edition_queue', [])

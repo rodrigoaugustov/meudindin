@@ -116,6 +116,31 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
         help_text="Marque esta opção se o lançamento já estiver confirmado em seu extrato."
     )
 
+    # --- Novos campos para recorrência ---
+    REPETICAO_CHOICES = [
+        ('UNICA', 'Única'),
+        ('RECORRENTE', 'Recorrente'),
+    ]
+    PERIODICIDADE_CHOICES = [
+        ('MENSAL', 'Mensal'),
+        ('DIARIA', 'Diária'),
+        ('SEMANAL', 'Semanal'),
+        ('SEMESTRAL', 'Semestral'),
+        ('ANUAL', 'Anual'),
+    ]
+
+    repeticao = forms.ChoiceField(
+        choices=REPETICAO_CHOICES, required=True,
+        label="Repetição", initial='UNICA'
+    )
+    periodicidade = forms.ChoiceField(
+        choices=PERIODICIDADE_CHOICES, required=False,
+        label="Periodicidade", initial='MENSAL'
+    )
+    quantidade_repeticoes = forms.IntegerField(
+        required=False, label="Quantidade de Repetições", min_value=2, initial=2,
+        help_text="Número total de parcelas, incluindo a atual."
+    )
     class Meta:
         model = Lancamento
         fields = [
@@ -158,6 +183,15 @@ class LancamentoForm(TailwindFormMixin, forms.ModelForm):
             raise forms.ValidationError(
                 "Um lançamento deve ser associado a uma conta bancária ou a um cartão de crédito."
             )
+
+        repeticao = cleaned_data.get('repeticao')
+        if repeticao == 'RECORRENTE':
+            periodicidade = cleaned_data.get('periodicidade')
+            quantidade = cleaned_data.get('quantidade_repeticoes')
+            if not periodicidade:
+                self.add_error('periodicidade', 'Este campo é obrigatório para lançamentos recorrentes.')
+            if not quantidade:
+                self.add_error('quantidade_repeticoes', 'Este campo é obrigatório para lançamentos recorrentes.')
 
         return cleaned_data
 

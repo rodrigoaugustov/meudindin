@@ -27,6 +27,18 @@ document.addEventListener('DOMContentLoaded', function() {
         row.classList.add('bg-blue-100', 'ring-2', 'ring-blue-200');
         selectedRow = row;
 
+        // Garante que os dados de recorrência existam no dataset ao selecionar a linha pela primeira vez.
+        // Isso torna o estado mais previsível e evita problemas se o usuário não interagir com os campos de recorrência.
+        if (typeof selectedRow.dataset.repeticao === 'undefined') {
+            selectedRow.dataset.repeticao = 'UNICA';
+        }
+        if (typeof selectedRow.dataset.periodicidade === 'undefined') {
+            selectedRow.dataset.periodicidade = 'MENSAL';
+        }
+        if (typeof selectedRow.dataset.quantidadeRepeticoes === 'undefined') {
+            selectedRow.dataset.quantidadeRepeticoes = '2';
+        }
+
         // Preenche o formulário de edição com os dados da linha
         populateEditor(row.dataset);
 
@@ -43,10 +55,18 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('editor_categoria').value = data.categoriaId;
         document.getElementById('editor_data_competencia').value = data.dataCompetencia;
         document.getElementById('editor_data_caixa').value = data.dataCaixa;
+        // Os dados de recorrência agora são lidos diretamente do dataset, que já foi inicializado.
+        document.getElementById('editor_repeticao').value = data.repeticao;
+        document.getElementById('editor_periodicidade').value = data.periodicidade;
+        document.getElementById('editor_quantidade_repeticoes').value = data.quantidadeRepeticoes;
+        toggleEditorRecorrencia();
     }
 
     // 3. Event listener para mudanças nos campos do formulário de edição
-    editorForm.addEventListener('input', (e) => {
+    // Usar o evento 'change' é mais robusto para todos os tipos de campos de formulário,
+    // especialmente para <select>, garantindo que a alteração seja capturada de forma confiável.
+    // O evento 'input' pode não ser disparado de forma consistente para dropdowns em todos os cenários.
+    editorForm.addEventListener('change', (e) => {
         if (!selectedRow) return;
 
         const fieldName = e.target.name;
@@ -58,8 +78,12 @@ document.addEventListener('DOMContentLoaded', function() {
             'valor': { datasetKey: 'valor', cellClass: '.valor-cell' },
             'tipo': { datasetKey: 'tipo', cellClass: '.valor-cell' },
             'categoria': { datasetKey: 'categoriaId', cellClass: '.categoria-nome-cell' },
+            // Mapeia os nomes dos campos do formulário para as chaves do dataset
             'data_caixa': { datasetKey: 'dataCaixa', cellClass: '.data-caixa-cell' },
             'data_competencia': { datasetKey: 'dataCompetencia', cellClass: null },
+            'repeticao': { datasetKey: 'repeticao', cellClass: null },
+            'periodicidade': { datasetKey: 'periodicidade', cellClass: null },
+            'quantidade_repeticoes': { datasetKey: 'quantidadeRepeticoes', cellClass: null },
         };
 
         const mapping = fieldMap[fieldName];
@@ -70,6 +94,16 @@ document.addEventListener('DOMContentLoaded', function() {
             selectedRow.dataset[mapping.datasetKey] = e.target.options[e.target.selectedIndex].text;
         } else {
             selectedRow.dataset[mapping.datasetKey] = value;
+        }
+
+        // Se o campo de repetição foi alterado, lida com a UI e os valores padrão
+        if (fieldName === 'repeticao') {
+            toggleEditorRecorrencia();
+            // Se mudou para RECORRENTE, garante que os valores padrão sejam salvos no dataset
+            if (value === 'RECORRENTE') {
+                selectedRow.dataset.periodicidade = document.getElementById('editor_periodicidade').value;
+                selectedRow.dataset.quantidadeRepeticoes = document.getElementById('editor_quantidade_repeticoes').value;
+            }
         }
 
         // Atualiza a célula correspondente na tabela para feedback visual imediato
@@ -114,6 +148,18 @@ document.addEventListener('DOMContentLoaded', function() {
         lancamentosJsonInput.value = JSON.stringify(lancamentosParaEnviar);
         confirmationForm.submit();
     });
+
+    // --- Lógica para controlar a visibilidade dos campos de recorrência ---
+    const editorRepeticaoEl = document.getElementById('editor_repeticao');
+    const editorOpcoesRecorrenciaEl = document.getElementById('editor-opcoes-recorrencia');
+
+    function toggleEditorRecorrencia() {
+        if (editorRepeticaoEl && editorRepeticaoEl.value === 'RECORRENTE') {
+            editorOpcoesRecorrenciaEl.classList.remove('hidden');
+        } else {
+            editorOpcoesRecorrenciaEl.classList.add('hidden');
+        }
+    }
 });
 
 // Função global para o botão de excluir linha (reutilizada)

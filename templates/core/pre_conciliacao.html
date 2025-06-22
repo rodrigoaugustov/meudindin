@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static widget_tweaks %}
+{% load static widget_tweaks formatacao %}
 
 {% block title %}Revisar Importação{% endblock %}
 
@@ -124,6 +124,27 @@
                                 <div>
                                     <label for="editor_data_caixa" class="block text-sm font-medium text-gray-700">Data Caixa</label>
                                     {{ form_lancamento.data_caixa|attr:"id:editor_data_caixa,name:data_caixa,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
+                                </div>
+                            </div>
+
+                            <!-- Recurrence Section -->
+                            <div class="mt-4 border-t pt-4 space-y-4">
+                                <h4 class="text-md font-medium text-gray-800">Recorrência</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                    <div>
+                                        <label for="editor_repeticao" class="block text-sm font-medium text-gray-700">Repetição</label>
+                                        {{ form_lancamento.repeticao|attr:"id:editor_repeticao,name:repeticao,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
+                                    </div>
+                                    <div id="editor-opcoes-recorrencia" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="editor_periodicidade" class="block text-sm font-medium text-gray-700">Periodicidade</label>
+                                            {{ form_lancamento.periodicidade|attr:"id:editor_periodicidade,name:periodicidade,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
+                                        </div>
+                                        <div>
+                                            <label for="editor_quantidade_repeticoes" class="block text-sm font-medium text-gray-700">Repetições</label>
+                                            {{ form_lancamento.quantidade_repeticoes|attr:"id:editor_quantidade_repeticoes,name:quantidade_repeticoes,class:mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </form>
