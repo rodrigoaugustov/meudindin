@@ -9,6 +9,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnExcluir = document.getElementById('btn-excluir');
     const btnConciliar = document.getElementById('btn-conciliar');
 
+    // --- Elementos do Modal de Confirmação Genérico ---
+    const modal = document.getElementById('confirmation-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    const confirmBtn = document.getElementById('modal-confirm-button');
+    const secondaryBtn = document.getElementById('modal-secondary-button');
+    const cancelBtn = document.getElementById('modal-cancel-button');
+
+
     let selectedItems = new Set();
     let totalValue = 0;
 
@@ -84,23 +93,64 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnExcluir.addEventListener('click', () => {
-        if (selectedItems.size > 0 && confirm(`Tem certeza que deseja excluir ${selectedItems.size} lançamento(s)?`)) {
-            fetch('/lancamentos/bulk-delete/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: JSON.stringify({ ids: Array.from(selectedItems) })
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('Ocorreu um erro ao excluir os lançamentos.');
-                }
-            });
+        if (selectedItems.size === 0) return;
+
+        // Verifica se algum dos itens selecionados é recorrente
+        let isAnyRecurrent = false;
+        selectedItems.forEach(id => {
+            const checkbox = document.querySelector(`input[data-id="${id}"]`);
+            if (checkbox && checkbox.dataset.recorrenciaId) {
+                isAnyRecurrent = true;
+            }
+        });
+
+        if (isAnyRecurrent && modal) {
+            // Usa o modal avançado se houver itens recorrentes
+            modalTitle.textContent = 'Excluir Lançamentos';
+            modalBody.textContent = `Você selecionou lançamentos recorrentes. Deseja excluir apenas os ${selectedItems.size} itens selecionados ou também suas futuras recorrências (não conciliadas)?`;
+            confirmBtn.textContent = 'Selecionados e futuros';
+            secondaryBtn.textContent = 'Apenas selecionados';
+            secondaryBtn.classList.remove('hidden');
+
+            const closeModal = () => modal.classList.add('hidden');
+            cancelBtn.onclick = closeModal;
+            modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+            secondaryBtn.onclick = () => {
+                performBulkDelete({ ids: Array.from(selectedItems), delete_option: 'one' });
+                closeModal();
+            };
+
+            confirmBtn.onclick = () => {
+                performBulkDelete({ ids: Array.from(selectedItems), delete_option: 'all' });
+                closeModal();
+            };
+
+            modal.classList.remove('hidden');
+        } else {
+            // Usa o confirm simples do navegador para exclusões não recorrentes
+            if (confirm(`Tem certeza que deseja excluir ${selectedItems.size} lançamento(s)?`)) {
+                performBulkDelete({ ids: Array.from(selectedItems), delete_option: 'one' });
+            }
         }
     });
+
+    function performBulkDelete(payload) {
+        fetch('/lancamentos/bulk-delete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('#form-excluir-massa [name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(payload)
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Ocorreu um erro ao excluir os lançamentos.');
+            }
+        });
+    }
 
     btnConciliar.addEventListener('click', () => {
         if (selectedItems.size > 0) {

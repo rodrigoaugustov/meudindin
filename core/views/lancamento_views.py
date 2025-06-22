@@ -280,8 +280,36 @@ class LancamentoDeleteView(LoginRequiredMixin, DeleteView):
 def excluir_lancamentos_em_massa(request):
     try:
         data = json.loads(request.body)
-        ids = data.get('ids', [])
-        lancamentos_a_excluir = Lancamento.objects.filter(usuario=request.user, id__in=[int(id) for id in ids])
+        ids_selecionados = data.get('ids', [])
+        delete_option = data.get('delete_option', 'one') # 'one' ou 'all'
+
+        if not ids_selecionados:
+            return JsonResponse({'status': 'error', 'message': 'Nenhum ID fornecido.'}, status=400)
+
+        # Converte para um set para manipulação eficiente e evitar duplicatas
+        ids_para_excluir = set(int(id_str) for id_str in ids_selecionados)
+
+        if delete_option == 'all':
+            # Busca os lançamentos selecionados que são recorrentes
+            lancamentos_recorrentes_selecionados = Lancamento.objects.filter(
+                usuario=request.user, 
+                pk__in=ids_para_excluir, 
+                recorrencia_id__isnull=False
+            )
+            
+            # Para cada um, encontra os futuros e adiciona ao set de exclusão
+            for lancamento in lancamentos_recorrentes_selecionados:
+                lancamentos_futuros = Lancamento.objects.filter(
+                    usuario=request.user,
+                    recorrencia_id=lancamento.recorrencia_id,
+                    data_caixa__gt=lancamento.data_caixa,
+                    conciliado=False
+                ).values_list('id', flat=True)
+                
+                ids_para_excluir.update(lancamentos_futuros)
+
+        # Executa a exclusão em massa de todos os IDs coletados
+        lancamentos_a_excluir = Lancamento.objects.filter(usuario=request.user, id__in=list(ids_para_excluir))
         count = lancamentos_a_excluir.count()
         lancamentos_a_excluir.delete()
         return JsonResponse({'status': 'success', 'deleted_count': count})

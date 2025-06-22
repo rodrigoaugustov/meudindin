@@ -85,7 +85,7 @@
                         <div class="flex items-center space-x-4 flex-1">
                             <div class="relative w-5 h-5 flex items-center justify-center">
                                 <span class="h-3 w-3 rounded-full {% if lancamento.conciliado %}bg-purple-500{% else %}bg-green-500{% endif %} group-hover:opacity-0 transition-opacity"></span>
-                                <input type="checkbox" class="absolute opacity-0 group-hover:opacity-100 h-5 w-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer transition-opacity" data-id="{{ lancamento.pk }}" data-valor="{{ lancamento.valor_com_sinal }}">
+                                <input type="checkbox" class="absolute opacity-0 group-hover:opacity-100 h-5 w-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer transition-opacity" data-id="{{ lancamento.pk }}" data-valor="{{ lancamento.valor_com_sinal }}" data-recorrencia-id="{{ lancamento.recorrencia_id|default:'' }}">
                             </div>
                             <span class="text-sm text-gray-500 w-20">{{ lancamento.data_caixa|date:"d/m/Y" }}</span>
                             <div class="flex-1">
