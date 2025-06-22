@@ -67,6 +67,37 @@
                         </a>
                     </div>
                 </div>
+
+                <!-- Filtros Adicionais -->
+                <form method="get" action="{% url 'core:lancamento_list' conta.pk data_selecionada.year data_selecionada.month %}" class="space-y-4 border-t border-gray-200 pt-4">
+                    <h3 class="text-sm font-medium text-gray-500">Filtrar Lançamentos</h3>
+                    
+                    <div>
+                        <label for="q" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                        <input type="text" name="q" id="q" value="{{ filtro_q_atual|default:'' }}" placeholder="Buscar..." class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div>
+                        <label for="tipo" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                        <select name="tipo" id="tipo" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Todos os Tipos</option>
+                            <option value="D" {% if filtro_tipo_atual == 'D' %}selected{% endif %}>Apenas Débitos</option>
+                            <option value="C" {% if filtro_tipo_atual == 'C' %}selected{% endif %}>Apenas Créditos</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="categoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                        <select name="categoria" id="categoria" class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Todas as Categorias</option>
+                            {% for cat in categorias_conta %}
+                            <option value="{{ cat.pk }}" {% if filtro_categoria_atual == cat.pk %}selected{% endif %}>{{ cat.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="flex space-x-2"><button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 text-sm rounded-md hover:bg-blue-700">Filtrar</button><a href="{% url 'core:lancamento_list' conta.pk data_selecionada.year data_selecionada.month %}" class="flex-1 text-center bg-gray-200 text-gray-700 py-2 px-4 text-sm rounded-md hover:bg-gray-300">Limpar</a></div>
+                </form>
             </div>
         </aside>
 
@@ -97,6 +128,14 @@
                             <span class="text-md font-semibold w-32 text-right {% if lancamento.tipo == 'D' %}text-red-600{% else %}text-green-600{% endif %}">{{ lancamento.valor_com_sinal|brl }}</span>
                             <span class="w-28 text-right text-gray-700 font-medium">{{ lancamento.saldo_final_linha|brl }}</span>
                         </div>
+                    </li>
+                    {% empty %}
+                    <li class="px-4 py-10 sm:px-6 text-center text-gray-500">
+                        {% if filtro_q_atual or filtro_tipo_atual or filtro_categoria_atual %}
+                            Nenhum lançamento encontrado com os filtros aplicados.
+                        {% else %}
+                            Nenhum lançamento neste período.
+                        {% endif %}
                     </li>
                     {% endfor %}
                     

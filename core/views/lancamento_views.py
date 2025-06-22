@@ -96,11 +96,29 @@ class LancamentoListView(LoginRequiredMixin, ListView):
 
         self.conta = get_object_or_404(ContaBancaria, pk=pk, usuario=self.request.user)
         
-        return Lancamento.objects.filter(
+        # Queryset base
+        queryset = Lancamento.objects.filter(
             conta_bancaria=self.conta,
             data_caixa__year=ano,
             data_caixa__month=mes
-        ).com_saldo_parcial().order_by('-data_caixa', '-id')
+        )
+
+        # Captura os parâmetros de filtro do GET request
+        self.tipo_filtro = self.request.GET.get('tipo', '')
+        self.categoria_filtro = self.request.GET.get('categoria', '')
+        self.q_filtro = self.request.GET.get('q', '')
+
+        # Aplica os filtros ao queryset
+        if self.tipo_filtro:
+            queryset = queryset.filter(tipo=self.tipo_filtro)
+        
+        if self.categoria_filtro:
+            queryset = queryset.filter(categoria_id=self.categoria_filtro)
+
+        if self.q_filtro:
+            queryset = queryset.filter(descricao__icontains=self.q_filtro)
+
+        return queryset.com_saldo_parcial().order_by('-data_caixa', '-id')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -136,6 +154,18 @@ class LancamentoListView(LoginRequiredMixin, ListView):
         context['mes_seguinte'] = data_selecionada + relativedelta(months=1)
         context['saldo_inicial_periodo'] = saldo_anterior
         context['hoje'] = self.hoje
+        
+        # Adiciona os novos dados de contexto para os filtros
+        context['categorias_conta'] = Categoria.objects.filter(
+            Q(lancamento__conta_bancaria=self.conta) | Q(usuario__isnull=True)
+        ).distinct().order_by('nome')
+        context['filtro_tipo_atual'] = self.tipo_filtro
+        context['filtro_q_atual'] = self.q_filtro
+        
+        try:
+            context['filtro_categoria_atual'] = int(self.categoria_filtro)
+        except (ValueError, TypeError):
+            context['filtro_categoria_atual'] = ''
         
         return context
     
